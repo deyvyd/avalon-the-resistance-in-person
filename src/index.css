@@ -1,0 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@400;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-cinzel: "Cinzel", serif;
+  --font-lato: "Lato", sans-serif;
+}
+
+body {
+  @apply bg-[#0d1b2a] text-white font-lato;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  @apply font-cinzel;
+}
