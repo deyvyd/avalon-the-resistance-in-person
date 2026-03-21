@@ -38,6 +38,37 @@ interface Mission {
   status: 'pending' | 'success' | 'fail';
   votes: ('success' | 'fail')[];
   team: string[];
+  rejectionsBefore: number;
+}
+
+interface LancelotConfig {
+  id: string;
+  variant: 'var1' | 'var2' | 'var3' | 'var1_var2' | 'var1_var3' | 'var2_var3' | null;
+  deckSize: number;
+  deckRevealed: boolean;
+  startsAt: number;
+  mandatory: boolean;
+  recognition: boolean;
+}
+
+interface MatchRecord {
+  id: string;
+  timestamp: string;
+  playerCount: number;
+  players: { name: string; role: string; team: 'good' | 'evil' }[];
+  options: {
+    lancelot: string;
+    ladyOfLake: boolean;
+    excalibur: boolean;
+    targeting: boolean;
+  };
+  missions: {
+    status: 'pending' | 'success' | 'fail';
+    fails: number;
+  }[];
+  winner: 'good' | 'evil';
+  reason: string;
+  duration: number;
 }
 
 type GamePhase =
@@ -48,7 +79,9 @@ type GamePhase =
   | 'team-voting'
   | 'team-result'
   | 'mission-voting'
+  | 'excalibur-usage'
   | 'mission-result'
+  | 'lady-of-the-lake'
   | 'assassination'
   | 'game-over';
 
@@ -82,6 +115,38 @@ interface Room {
   winner?: 'good' | 'evil';
   gameOverReason?: string;
   createdAt: Date;
+  // New fields
+  lancelotConfig: LancelotConfig | null;
+  loyaltyDeck: ('none' | 'switch')[];
+  loyaltyDeckIndex: number;
+  loyaltyDeckVisible: ('none' | 'switch' | 'hidden')[];
+  lancelotLoyalty: {
+    lancelotGoodTeam: 'good' | 'evil';
+    lancelotEvilTeam: 'good' | 'evil';
+    swapOccurred: boolean;
+  } | null;
+  ladyOfLakeEnabled: boolean;
+  ladyOfLakeHolder: string | null;
+  ladyOfLakeUsed: string[];
+  ladyOfLakePhase: boolean;
+  excaliburEnabled: boolean;
+  excaliburHolder: string | null;
+  excaliburUsed: boolean;
+  excaliburTarget: string | null;
+  excaliburReveal: 'success' | 'fail' | null;
+  targetingEnabled: boolean;
+  attemptedMissions: number[];
+  matchHistory: MatchRecord[];
+  currentMatchStartedAt: Date | null;
+}
+
+function generateLoyaltyDeck(deckSize: number): ('none' | 'switch')[] {
+  if (deckSize <= 0) return [];
+  const deck: ('none' | 'switch')[] = [];
+  const swaps = Math.max(1, Math.floor(deckSize / 2)); // At least one swap if deck exists
+  for (let i = 0; i < swaps; i++) deck.push('switch');
+  for (let i = 0; i < deckSize - swaps; i++) deck.push('none');
+  return deck.sort(() => Math.random() - 0.5);
 }
 
 const rooms = new Map<string, Room>();
@@ -116,6 +181,24 @@ io.on("connection", (socket) => {
       teamVotes: {},
       missionVotes: {},
       createdAt: new Date(),
+      lancelotConfig: null,
+      loyaltyDeck: [],
+      loyaltyDeckIndex: 0,
+      loyaltyDeckVisible: [],
+      lancelotLoyalty: null,
+      ladyOfLakeEnabled: false,
+      ladyOfLakeHolder: null,
+      ladyOfLakeUsed: [],
+      ladyOfLakePhase: false,
+      excaliburEnabled: false,
+      excaliburHolder: null,
+      excaliburUsed: false,
+      excaliburTarget: null,
+      excaliburReveal: null,
+      targetingEnabled: false,
+      attemptedMissions: [],
+      matchHistory: [],
+      currentMatchStartedAt: null,
     };
     rooms.set(roomCode, room);
     socketToPlayer.set(socket.id, { roomCode, playerId });
@@ -195,13 +278,18 @@ io.on("connection", (socket) => {
     io.to(roomCode).emit("room-updated", room);
   });
 
-  socket.on("start-game", ({ roomCode, selectedRoles }) => {
+  socket.on("start-game", ({ roomCode, selectedRoles, lancelotConfig, ladyOfLakeEnabled, excaliburEnabled, targetingEnabled }) => {
     const room = rooms.get(roomCode);
     const { playerId } = socketToPlayer.get(socket.id) || {};
     if (!room || playerId !== room.hostId) return;
 
     room.selectedRoles = selectedRoles;
+    room.lancelotConfig = lancelotConfig;
+    room.ladyOfLakeEnabled = ladyOfLakeEnabled;
+    room.excaliburEnabled = excaliburEnabled;
+    room.targetingEnabled = targetingEnabled;
     room.phase = 'character-reveal';
+    room.currentMatchStartedAt = new Date();
     
     // Assign roles logic
     const playerIds = room.players.map(p => p.id);
@@ -209,6 +297,35 @@ io.on("connection", (socket) => {
     room.players.forEach(p => {
       p.role = assignments[p.id];
     });
+
+    // Lancelot setup
+    if (lancelotConfig) {
+      room.loyaltyDeck = generateLoyaltyDeck(lancelotConfig.deckSize);
+      room.loyaltyDeckIndex = 0;
+      room.loyaltyDeckVisible = lancelotConfig.deckRevealed 
+        ? [...room.loyaltyDeck] 
+        : Array(lancelotConfig.deckSize).fill('hidden');
+      room.lancelotLoyalty = {
+        lancelotGoodTeam: 'good',
+        lancelotEvilTeam: 'evil',
+        swapOccurred: false
+      };
+      
+      // Initial loyalty swap check - should happen as soon as game starts
+      handleLoyaltySwap(room, 0);
+    }
+
+    // Lady of the Lake setup
+    if (ladyOfLakeEnabled) {
+      const firstLeaderIndex = room.firstLeaderId 
+        ? room.players.findIndex(p => p.id === room.firstLeaderId)
+        : Math.floor(Math.random() * room.players.length);
+      
+      const leaderIndex = firstLeaderIndex !== -1 ? firstLeaderIndex : 0;
+      const holderIndex = (leaderIndex + room.players.length - 1) % room.players.length;
+      room.ladyOfLakeHolder = room.players[holderIndex].id;
+      room.ladyOfLakeUsed = [room.ladyOfLakeHolder];
+    }
 
     // Initialize missions
     const playerCount = room.players.length;
@@ -219,6 +336,7 @@ io.on("connection", (socket) => {
       status: 'pending',
       votes: [],
       team: [],
+      rejectionsBefore: 0,
     }));
 
     if (room.firstLeaderId) {
@@ -255,6 +373,23 @@ io.on("connection", (socket) => {
     room.firstLeaderId = undefined;
     room.winner = undefined;
     room.gameOverReason = undefined;
+    room.lancelotConfig = null;
+    room.loyaltyDeck = [];
+    room.loyaltyDeckIndex = 0;
+    room.loyaltyDeckVisible = [];
+    room.lancelotLoyalty = null;
+    room.ladyOfLakeEnabled = false;
+    room.ladyOfLakeHolder = null;
+    room.ladyOfLakeUsed = [];
+    room.ladyOfLakePhase = false;
+    room.excaliburEnabled = false;
+    room.excaliburHolder = null;
+    room.excaliburUsed = false;
+    room.excaliburTarget = null;
+    room.excaliburReveal = null;
+    room.targetingEnabled = false;
+    room.attemptedMissions = [];
+    room.currentMatchStartedAt = null;
 
     io.to(roomCode).emit("room-updated", room);
   });
@@ -287,12 +422,28 @@ io.on("connection", (socket) => {
     io.to(roomCode).emit("room-updated", room);
   });
 
-  socket.on("propose-team", ({ roomCode, teamPlayerIds }) => {
+  socket.on("propose-team", ({ roomCode, teamPlayerIds, targetMissionIndex }) => {
     const room = rooms.get(roomCode);
     if (!room) return;
+    
+    if (room.targetingEnabled && targetMissionIndex !== undefined) {
+      if (room.attemptedMissions.includes(targetMissionIndex)) return;
+      if (targetMissionIndex === 4 && room.attemptedMissions.length < 2) return;
+      room.currentMissionIndex = targetMissionIndex;
+    }
+
     room.proposedTeam = teamPlayerIds;
     room.phase = 'team-voting';
     room.teamVotes = {};
+    io.to(roomCode).emit("room-updated", room);
+  });
+
+  socket.on("assign-excalibur", ({ roomCode, targetPlayerId }) => {
+    const room = rooms.get(roomCode);
+    const { playerId } = socketToPlayer.get(socket.id) || {};
+    if (!room || playerId !== room.players[room.currentLeaderIndex].id) return;
+    
+    room.excaliburHolder = targetPlayerId;
     io.to(roomCode).emit("room-updated", room);
   });
 
@@ -356,31 +507,102 @@ io.on("connection", (socket) => {
     const room = rooms.get(roomCode);
     const { playerId } = socketToPlayer.get(socket.id) || {};
     if (!room || !playerId) return;
+
+    const player = room.players.find(p => p.id === playerId);
+    if (!player) return;
+
+    const isLancelot = player.role === 'lancelot_good' || player.role === 'lancelot_evil';
+    const currentTeam = (player.role && room.lancelotLoyalty && isLancelot)
+      ? (player.role === 'lancelot_good' ? room.lancelotLoyalty.lancelotGoodTeam : room.lancelotLoyalty.lancelotEvilTeam)
+      : (player.role ? ROLES[player.role].team : 'good');
+
+    // Lancelot mandatory check
+    if (isLancelot && room.lancelotConfig?.mandatory) {
+      if (currentTeam === 'good' && vote === 'fail') {
+        socket.emit("error", { message: "Lancelot do Bem deve jogar Sucesso nesta variante." });
+        return;
+      }
+      if (currentTeam === 'evil' && vote === 'success') {
+        socket.emit("error", { message: "Lancelot do Mal deve jogar Falha nesta variante." });
+        return;
+      }
+    }
+
+    // Normal Good check
+    if (!isLancelot && currentTeam === 'good' && vote === 'fail') {
+      socket.emit("error", { message: "Servos Leais de Arthur devem jogar Sucesso." });
+      return;
+    }
+
     room.missionVotes[playerId] = vote;
     
     // Automatic reveal if all in team voted
     if (Object.keys(room.missionVotes).length === room.proposedTeam.length) {
-      const votes = Object.values(room.missionVotes);
-      const fails = votes.filter(v => v === 'fail').length;
-      const mission = room.missions[room.currentMissionIndex];
-      
-      const playerCount = room.players.length;
-      const failsNeeded = needsTwoFails(room.currentMissionIndex, playerCount) ? 2 : 1;
-      const passed = fails < failsNeeded;
-
-      if (passed) {
-        mission.status = 'success';
+      if (room.excaliburEnabled && room.excaliburHolder && !room.excaliburUsed) {
+        room.phase = 'excalibur-usage';
       } else {
-        mission.status = 'fail';
+        processMissionResult(room, roomCode);
       }
-      mission.votes = [...votes].sort(() => Math.random() - 0.5);
-
-      room.lastMissionVoteResult = {
-        votes: mission.votes,
-        passed
-      };
-      room.phase = 'mission-result';
     }
+
+    io.to(roomCode).emit("room-updated", room);
+  });
+
+  socket.on("use-excalibur", ({ roomCode, targetPlayerId }) => {
+    const room = rooms.get(roomCode);
+    const { playerId } = socketToPlayer.get(socket.id) || {};
+    if (!room || playerId !== room.excaliburHolder || room.excaliburUsed) return;
+
+    const originalVote = room.missionVotes[targetPlayerId];
+    if (!originalVote) return;
+
+    room.excaliburUsed = true;
+    room.excaliburTarget = targetPlayerId;
+    room.excaliburReveal = originalVote;
+    
+    // Swap the vote
+    room.missionVotes[targetPlayerId] = originalVote === 'success' ? 'fail' : 'success';
+
+    processMissionResult(room, roomCode);
+    io.to(roomCode).emit("room-updated", room);
+  });
+
+  socket.on("skip-excalibur", ({ roomCode }) => {
+    const room = rooms.get(roomCode);
+    const { playerId } = socketToPlayer.get(socket.id) || {};
+    if (!room || playerId !== room.excaliburHolder || room.excaliburUsed) return;
+
+    room.excaliburUsed = true;
+    processMissionResult(room, roomCode);
+    io.to(roomCode).emit("room-updated", room);
+  });
+
+  socket.on("lady-examine", ({ roomCode, targetPlayerId }) => {
+    const room = rooms.get(roomCode);
+    const { playerId } = socketToPlayer.get(socket.id) || {};
+    if (!room || playerId !== room.ladyOfLakeHolder || !room.ladyOfLakePhase) return;
+
+    if (room.ladyOfLakeUsed.includes(targetPlayerId)) return;
+
+    const targetPlayer = room.players.find(p => p.id === targetPlayerId);
+    if (!targetPlayer) return;
+
+    let loyalty: 'good' | 'evil' = ROLES[targetPlayer.role!].team;
+    
+    // Lancelot loyalty check
+    if (targetPlayer.role === 'lancelot_good') loyalty = room.lancelotLoyalty!.lancelotGoodTeam;
+    if (targetPlayer.role === 'lancelot_evil') loyalty = room.lancelotLoyalty!.lancelotEvilTeam;
+
+    socket.emit("lady-result", { holderPlayerId: playerId, targetPlayerId, loyalty });
+    
+    room.ladyOfLakeHolder = targetPlayerId;
+    room.ladyOfLakeUsed.push(targetPlayerId);
+    room.ladyOfLakePhase = false;
+    
+    // Move to next leader
+    room.phase = 'team-proposal';
+    room.proposedTeam = [];
+    room.currentLeaderIndex = (room.currentLeaderIndex + 1) % room.players.length;
 
     io.to(roomCode).emit("room-updated", room);
   });
@@ -431,6 +653,7 @@ io.on("connection", (socket) => {
           room.phase = 'game-over';
           room.winner = 'evil';
           room.gameOverReason = '5 equipes rejeitadas consecutivamente';
+          saveMatchHistory(room);
         } else {
           room.phase = 'team-proposal';
           room.proposedTeam = []; // Reset proposed team
@@ -438,21 +661,47 @@ io.on("connection", (socket) => {
         }
       }
     } else if (room.phase === 'mission-result') {
-      const successCount = room.missions.filter(m => m.status === 'success').length;
-      const failCount = room.missions.filter(m => m.status === 'fail').length;
+      if (checkGameOver(room)) {
+        io.to(roomCode).emit("room-updated", room);
+        return;
+      }
 
-      if (failCount >= 3) {
-        room.phase = 'game-over';
-        room.winner = 'evil';
-        room.gameOverReason = '3 missões falharam';
-      } else if (successCount >= 3) {
-        room.phase = 'assassination';
+      // Lady of the Lake check
+      const completedMissions = room.missions.filter(m => m.status !== 'pending').length;
+      if (room.ladyOfLakeEnabled && [2, 3, 4].includes(completedMissions)) {
+        room.ladyOfLakePhase = true;
+        room.phase = 'lady-of-the-lake';
       } else {
         room.phase = 'team-proposal';
         room.proposedTeam = []; // Reset proposed team
-        room.currentMissionIndex++;
+        room.missionVotes = {};
+        room.teamVotes = {};
+        room.rejectionCount = 0;
+        
+        if (!room.targetingEnabled) {
+          room.currentMissionIndex++;
+        }
         room.currentLeaderIndex = (room.currentLeaderIndex + 1) % room.players.length;
+        
+        // Excalibur reset
+        room.excaliburHolder = null;
+        room.excaliburUsed = false;
+        room.excaliburTarget = null;
+        room.excaliburReveal = null;
+
+        // Loyalty swap check
+        if (room.lancelotConfig) {
+          handleLoyaltySwap(room, room.targetingEnabled ? completedMissions : room.currentMissionIndex);
+        }
       }
+    } else if (room.phase === 'character-reveal') {
+      room.phase = 'team-proposal';
+      room.proposedTeam = [];
+      room.missionVotes = {};
+      room.teamVotes = {};
+      room.rejectionCount = 0;
+      
+      // No need to call handleLoyaltySwap(room, 0) here as it's now called in start-game
     }
 
     io.to(roomCode).emit("room-updated", room);
@@ -471,6 +720,7 @@ io.on("connection", (socket) => {
       room.gameOverReason = 'Merlin sobreviveu!';
     }
     room.phase = 'game-over';
+    saveMatchHistory(room);
     io.to(roomCode).emit("room-updated", room);
   });
 
@@ -567,7 +817,132 @@ const ROLES: Record<string, { team: 'good' | 'evil' }> = {
   morgana: { team: 'evil' },
   mordred: { team: 'evil' },
   oberon: { team: 'evil' },
+  lancelot_good: { team: 'good' },
+  lancelot_evil: { team: 'evil' },
 };
+
+function processMissionResult(room: Room, roomCode: string) {
+  const votes = Object.values(room.missionVotes);
+  const fails = votes.filter(v => v === 'fail').length;
+  const mission = room.missions[room.currentMissionIndex];
+  
+  const playerCount = room.players.length;
+  const failsNeeded = needsTwoFails(room.currentMissionIndex, playerCount) ? 2 : 1;
+  const passed = fails < failsNeeded;
+
+  if (passed) {
+    mission.status = 'success';
+  } else {
+    mission.status = 'fail';
+  }
+  mission.votes = [...votes].sort(() => Math.random() - 0.5);
+
+  room.lastMissionVoteResult = {
+    votes: mission.votes,
+    passed
+  };
+  room.phase = 'mission-result';
+  
+  if (room.targetingEnabled) {
+    room.attemptedMissions.push(room.currentMissionIndex);
+  }
+}
+
+function handleLoyaltySwap(room: Room, roundIndex: number) {
+  if (!room.lancelotConfig) return;
+  const config = room.lancelotConfig;
+
+  // Check if we should reveal a card for this round
+  if (roundIndex + 1 >= config.startsAt) {
+    const deckIdx = roundIndex + 1 - config.startsAt;
+    
+    // Prevent duplicate swaps for the same round index
+    if (room.loyaltyDeckIndex >= deckIdx + 1) return;
+
+    if (deckIdx < room.loyaltyDeck.length) {
+      const card = room.loyaltyDeck[deckIdx];
+      
+      // Reveal the card
+      room.loyaltyDeckVisible[deckIdx] = card;
+      
+      // Update swapOccurred for UI feedback
+      room.lancelotLoyalty!.swapOccurred = (card === 'switch');
+      
+      if (card === 'switch') {
+        // Swap loyalty
+        const temp = room.lancelotLoyalty!.lancelotGoodTeam;
+        room.lancelotLoyalty!.lancelotGoodTeam = room.lancelotLoyalty!.lancelotEvilTeam;
+        room.lancelotLoyalty!.lancelotEvilTeam = temp;
+      }
+      
+      room.loyaltyDeckIndex = deckIdx + 1;
+    } else {
+      room.lancelotLoyalty!.swapOccurred = false;
+    }
+  } else {
+    room.lancelotLoyalty!.swapOccurred = false;
+  }
+}
+
+function checkGameOver(room: Room) {
+  const successes = room.missions.filter(m => m.status === 'success').length;
+  const failures = room.missions.filter(m => m.status === 'fail').length;
+
+  if (successes >= 3) {
+    const hasAssassin = room.players.some(p => p.role === 'assassin');
+    if (hasAssassin) {
+      room.phase = 'assassination';
+    } else {
+      room.phase = 'game-over';
+      room.winner = 'good';
+      room.gameOverReason = 'Três missões bem-sucedidas!';
+      saveMatchHistory(room);
+    }
+    return true;
+  }
+
+  if (failures >= 3) {
+    room.phase = 'game-over';
+    room.winner = 'evil';
+    room.gameOverReason = 'Três missões falharam!';
+    saveMatchHistory(room);
+    return true;
+  }
+  return false;
+}
+
+function saveMatchHistory(room: Room) {
+  const match: MatchRecord = {
+    id: Math.random().toString(36).substring(2, 9),
+    timestamp: new Date().toISOString(),
+    playerCount: room.players.length,
+    players: room.players.map(p => {
+      let team = ROLES[p.role!].team;
+      if (p.role === 'lancelot_good') team = room.lancelotLoyalty!.lancelotGoodTeam;
+      if (p.role === 'lancelot_evil') team = room.lancelotLoyalty!.lancelotEvilTeam;
+      return {
+        name: p.name,
+        role: p.role!,
+        team
+      };
+    }),
+    options: {
+      lancelot: room.lancelotConfig ? room.lancelotConfig.id : 'none',
+      ladyOfLake: room.ladyOfLakeEnabled,
+      excalibur: room.excaliburEnabled,
+      targeting: room.targetingEnabled
+    },
+    missions: room.missions.map(m => ({
+      status: m.status,
+      fails: m.votes.filter(v => v === 'fail').length
+    })),
+    winner: room.winner!,
+    reason: room.gameOverReason!,
+    duration: room.currentMatchStartedAt ? Math.floor((Date.now() - room.currentMatchStartedAt.getTime()) / 1000) : 0
+  };
+  room.matchHistory.unshift(match);
+  if (room.matchHistory.length > 10) room.matchHistory.pop();
+}
 
 function needsTwoFails(missionIndex: number, playerCount: number): boolean {
   return missionIndex === 3 && playerCount >= 7;
@@ -581,7 +956,17 @@ function assignRoles(playerIds: string[], selectedOptionalRoles: string[]): Reco
   const rolesToAssign: string[] = [];
   rolesToAssign.push('merlin');
   rolesToAssign.push('assassin');
-  selectedOptionalRoles.forEach(roleId => rolesToAssign.push(roleId));
+  
+  // Handle Lancelots separately if selected
+  const useLancelots = selectedOptionalRoles.includes('lancelot_good') || selectedOptionalRoles.includes('lancelot_evil');
+  const otherOptionalRoles = selectedOptionalRoles.filter(r => r !== 'lancelot_good' && r !== 'lancelot_evil');
+  
+  if (useLancelots) {
+    rolesToAssign.push('lancelot_good');
+    rolesToAssign.push('lancelot_evil');
+  }
+  
+  otherOptionalRoles.forEach(roleId => rolesToAssign.push(roleId));
 
   const currentGood = rolesToAssign.filter(r => ROLES[r].team === 'good').length;
   const currentEvil = rolesToAssign.filter(r => ROLES[r].team === 'evil').length;

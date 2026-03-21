@@ -23,7 +23,11 @@ import {
   Info,
   QrCode,
   Copy,
-  LogOut
+  LogOut,
+  Droplets,
+  Target,
+  RefreshCw,
+  Equal
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ROLES, MISSION_SIZES, needsTwoFails, Team, getNarrationSequence, TEAM_DISTRIBUTION } from './core/avalon';
@@ -63,9 +67,20 @@ type GamePhase =
   | 'team-voting'
   | 'team-result'
   | 'mission-voting'
+  | 'excalibur-usage'
   | 'mission-result'
+  | 'lady-of-the-lake'
   | 'assassination'
   | 'game-over';
+
+const LANCELOT_CONFIGS = {
+  'var1': { variant: 'var1', deckSize: 3, deckRevealed: false, startsAt: 3, mandatory: false, recognition: false },
+  'var2': { variant: 'var2', deckSize: 5, deckRevealed: true, startsAt: 1, mandatory: true, recognition: false },
+  'var3': { variant: 'var3', deckSize: 0, deckRevealed: false, startsAt: 0, mandatory: false, recognition: true },
+  'var1_var2': { variant: 'var1_var2', deckSize: 5, deckRevealed: false, startsAt: 1, mandatory: true, recognition: false },
+  'var1_var3': { variant: 'var1_var3', deckSize: 3, deckRevealed: false, startsAt: 3, mandatory: false, recognition: true },
+  'var2_var3': { variant: 'var2_var3', deckSize: 5, deckRevealed: true, startsAt: 1, mandatory: true, recognition: true },
+} as const;
 
 interface TeamVoteResult {
   votes: Record<string, 'approve' | 'reject'>;
@@ -96,6 +111,24 @@ interface Room {
   firstLeaderId?: string;
   winner?: 'good' | 'evil';
   gameOverReason?: string;
+  lancelotConfig: any;
+  loyaltyDeck: string[];
+  loyaltyDeckIndex: number;
+  loyaltyDeckVisible: string[];
+  lancelotLoyalty: { lancelotGoodTeam: 'good' | 'evil'; lancelotEvilTeam: 'good' | 'evil'; swapOccurred: boolean } | null;
+  ladyOfLakeEnabled: boolean;
+  ladyOfLakeHolder: string | null;
+  ladyOfLakeUsed: string[];
+  ladyOfLakePhase: boolean;
+  excaliburEnabled: boolean;
+  excaliburHolder: string | null;
+  excaliburUsed: boolean;
+  excaliburTarget: string | null;
+  excaliburReveal: 'success' | 'fail' | null;
+  targetingEnabled: boolean;
+  attemptedMissions: number[];
+  matchHistory: any[];
+  currentMatchStartedAt: Date | null;
 }
 
 // --- Context ---
@@ -172,6 +205,53 @@ const Badge = ({ children, team }: { children: ReactNode; team: Team }) => (
 );
 
 // --- Pages ---
+
+const MatchHistoryView = ({ history, onBack }: { history: any[]; onBack: () => void }) => {
+  return (
+    <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+      <div className="flex items-center gap-4">
+        <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-lg">
+          <SkipBack size={24} />
+        </button>
+        <h2 className="text-2xl font-['Cinzel'] text-[#ffd700]">Histórico</h2>
+      </div>
+
+      <div className="space-y-4">
+        {history.map((match) => (
+          <div key={match.id}>
+            <Card className="space-y-3">
+            <div className="flex justify-between items-start">
+              <div className="text-xs text-gray-500 font-mono">{new Date(match.timestamp).toLocaleString('pt-BR')}</div>
+              <Badge team={match.winner}>{match.winner === 'good' ? 'Vitória do Bem' : 'Vitória do Mal'}</Badge>
+            </div>
+            
+            <div className="grid grid-cols-5 gap-1">
+              {match.missions.map((m: any, i: number) => (
+                <div key={i} className={`h-2 rounded-full ${m.status === 'success' ? 'bg-[#3498db]' : m.status === 'fail' ? 'bg-[#c0392b]' : 'bg-gray-700'}`}></div>
+              ))}
+            </div>
+
+            <p className="text-sm font-bold">{match.reason}</p>
+            
+            <div className="pt-2 border-t border-white/5 space-y-2">
+              <div className="flex flex-wrap gap-1">
+                {match.players.map((p: any, i: number) => (
+                  <span key={i} className={`text-[9px] px-1.5 py-0.5 rounded border ${p.team === 'good' ? 'border-[#3498db]/30 text-[#3498db]' : 'border-[#c0392b]/30 text-[#c0392b]'}`}>
+                    {p.name} ({ROLES[p.role].name})
+                  </span>
+                ))}
+              </div>
+              <div className="text-[9px] text-gray-500 uppercase tracking-widest">
+                Duração: {Math.floor(match.duration / 60)}m {match.duration % 60}s | {match.playerCount} Jogadores
+              </div>
+            </div>
+          </Card>
+        </div>
+      ))}
+      </div>
+    </motion.div>
+  );
+};
 
 const Home = () => {
   const [name, setName] = useState('');
@@ -373,9 +453,320 @@ const Room = () => {
   );
 };
 
+const LancelotModal = ({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  initialConfig 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onConfirm: (configKey: string) => void;
+  initialConfig: string | null;
+}) => {
+  const [v1, setV1] = useState(false);
+  const [v2, setV2] = useState(false);
+  const [v3, setV3] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setV1(initialConfig?.includes('var1') || false);
+      setV2(initialConfig?.includes('var2') || false);
+      setV3(initialConfig?.includes('var3') || false);
+    }
+  }, [isOpen, initialConfig]);
+
+  if (!isOpen) return null;
+
+  const selectedCount = [v1, v2, v3].filter(Boolean).length;
+  
+  const getLancelotConfigKey = (var1: boolean, var2: boolean, var3: boolean): string => {
+    if (!var1 && !var2 && !var3) return 'none';
+    if ( var1 && !var2 && !var3) return 'var1';
+    if (!var1 &&  var2 && !var3) return 'var2';
+    if (!var1 && !var2 &&  var3) return 'var3';
+    if ( var1 &&  var2 && !var3) return 'var1_var2';
+    if ( var1 && !var2 &&  var3) return 'var1_var3';
+    if (!var1 &&  var2 &&  var3) return 'var2_var3';
+    return 'none';
+  };
+
+  const configKey = getLancelotConfigKey(v1, v2, v3);
+
+  const PREVIEWS: Record<string, any> = {
+    none: {
+      title: "⚠️ NENHUMA VARIANTE SELECIONADA",
+    },
+    var1: {
+      title: "🌀 TROCAS OCULTAS (Var 1)",
+      preparacao: [
+        "Baralho de Lealdade: 3 vazias + 2 trocas (virado para baixo)",
+        "Lancelot Mau mostra polegar (não abre olhos)",
+        "Lancelots NÃO se reconhecem"
+      ],
+      durante: [
+        "A partir da 3ª rodada, revele 1 carta por turno",
+        "Lancelots podem BLEFAR livremente",
+        "Trocas são completamente secretas"
+      ],
+      tendencia: "🔴 Pró-Mal | 🌪️ Caos total",
+      ideal: "5-7 jogadores"
+    },
+    var2: {
+      title: "📅 TROCAS PREDETERMINADAS (Var 2)",
+      preparacao: [
+        "Baralho de Lealdade: 5 vazias + 2 trocas (5 reveladas ANTES)",
+        "Lancelot Mau mostra polegar (não abre olhos)",
+        "Lancelots NÃO se reconhecem"
+      ],
+      durante: [
+        "Troca automática nas rodadas indicadas",
+        "Cartas de missão OBRIGATÓRIAS",
+        "Todos sabem QUANDO trocar"
+      ],
+      tendencia: "🔵 Pró-Bem | 🧠 Dedução estratégica",
+      ideal: "7-9 jogadores",
+      avisos: ["Prepare 5 cartas VISÍVEIS antes de iniciar o jogo"]
+    },
+    var3: {
+      title: "👁️ RECONHECIMENTO MÚTUO (Var 3)",
+      preparacao: [
+        "SEM baralho de Lealdade",
+        "SEM trocas de lealdade",
+        "Lancelots se reconhecem entre si"
+      ],
+      durante: [
+        "Nenhuma troca ocorre",
+        "Apenas jogo psicológico de identidades"
+      ],
+      tendencia: "🔵 Pró-Bem | 🎭 Jogo social",
+      ideal: "8-10 jogadores iniciantes"
+    },
+    var1_var2: {
+      title: "🎲 CAOS CONTROLADO (Var 1 + Obrigatoriedade)",
+      preparacao: [
+        "Baralho de Lealdade: 5 vazias + 2 trocas (virado para baixo)",
+        "Lancelot Mau mostra polegar (não abre olhos)",
+        "Lancelots NÃO se reconhecem"
+      ],
+      durante: [
+        "No início de CADA rodada (1ª a 5ª), revele 1 carta",
+        "Cartas de missão OBRIGATÓRIAS",
+        "Trocas secretas mas missões confiáveis"
+      ],
+      tendencia: "🔵 Pró-Bem | ⚖️ Equilibrado",
+      ideal: "5-7 jogadores"
+    },
+    var1_var3: {
+      title: "✨ CAOS CONSCIENTE (Var 1 + Var 3)",
+      preparacao: [
+        "Baralho de Lealdade: 3 vazias + 2 trocas (virado para baixo)",
+        "Lancelot Mau mostra polegar (não abre olhos)",
+        "Lancelots se reconhecem entre si"
+      ],
+      durante: [
+        "A partir da 3ª rodada, revele 1 carta por turno",
+        "Lancelots podem BLEFAR nas missões",
+        "Apenas os 2 Lancelots sabem o estado real"
+      ],
+      tendencia: "🔴 Pró-Mal | 🎭 Alta tensão social",
+      ideal: "8-10 jogadores experientes"
+    },
+    var2_var3: {
+      title: "📊 TROCA PREVISÍVEL (Var 2 + Var 3)",
+      preparacao: [
+        "Baralho de Lealdade: 5 vazias + 2 trocas (5 reveladas ANTES)",
+        "Lancelot Mau mostra polegar (não abre olhos)",
+        "Lancelots se reconhecem entre si"
+      ],
+      durante: [
+        "Troca automática nas rodadas indicadas",
+        "Cartas de missão OBRIGATÓRIAS",
+        "Todos sabem QUANDO trocar",
+        "Jogo psicológico entre os Lancelots"
+      ],
+      tendencia: "🔵 Pró-Bem | 🧠 Dedução limpa",
+      ideal: "8-10 jogadores experientes",
+      avisos: ["Prepare 5 cartas VISÍVEIS antes de iniciar o jogo"]
+    }
+  };
+
+  const preview = PREVIEWS[configKey];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm p-0 md:p-4">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="bg-[#0d1b2a]/95 border-2 border-[#ffd700] w-full h-full md:h-auto md:max-w-3xl md:rounded-3xl flex flex-col overflow-hidden shadow-[0_0_50px_rgba(255,215,0,0.2)]"
+      >
+        {/* Header */}
+        <div className="p-6 border-b border-[#ffd700]/30 flex justify-between items-center bg-[#1b263b]/50">
+          <h2 className="text-2xl font-['Cinzel'] text-[#ffd700] flex items-center gap-3">
+            <span className="text-3xl">🗡️</span> Configurar Lancelots
+          </h2>
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+            <XCircle size={28} className="text-gray-400" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-grow overflow-y-auto md:flex md:overflow-hidden">
+          {/* Left: Selection */}
+          <div className="p-6 space-y-4 md:w-[320px] md:border-r md:border-[#ffd700]/20 md:overflow-y-auto">
+            <h3 className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold mb-4 flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-[#ffd700]" /> Selecione as Variantes (Máximo 2)
+            </h3>
+            
+            {[
+              { id: 'v1', label: 'Variante 1', sub: 'Trocas de Lealdade Ocultas', icon: '🎲', state: v1, setter: setV1 },
+              { id: 'v2', label: 'Variante 2', sub: 'Trocas Predeterminadas', icon: '📅', state: v2, setter: setV2 },
+              { id: 'v3', label: 'Variante 3', sub: 'Reconhecimento Mútuo', icon: '👁️', state: v3, setter: setV3 },
+            ].map((item) => {
+              const disabled = !item.state && selectedCount >= 2;
+              return (
+                <button
+                  key={item.id}
+                  disabled={disabled}
+                  onClick={() => item.setter(!item.state)}
+                  className={`w-full p-4 rounded-xl border-2 text-left transition-all flex items-center gap-4 ${
+                    item.state 
+                      ? 'border-[#ffd700] bg-[#ffd700]/10 shadow-[0_0_15px_rgba(255,215,0,0.1)]' 
+                      : 'border-[#4a5f7f] bg-white/5'
+                  } ${disabled ? 'opacity-30 grayscale cursor-not-allowed' : 'hover:border-[#ffd700]/50'}`}
+                >
+                  <div className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
+                    item.state ? 'bg-[#ffd700] border-[#ffd700]' : 'border-[#4a5f7f]'
+                  }`}>
+                    {item.state && <CheckCircle2 size={16} className="text-[#0d1b2a]" />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{item.icon}</span>
+                      <span className={`font-bold text-sm ${item.state ? 'text-[#ffd700]' : 'text-white'}`}>{item.label}</span>
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-0.5">{item.sub}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Right: Preview */}
+          <div className="p-6 bg-[#1b263b]/30 flex-grow md:overflow-y-auto">
+            <h3 className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold mb-6 flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-[#ffd700]" /> Preview da Configuração Atual
+            </h3>
+
+            {configKey === 'none' ? (
+              <div className="h-full flex flex-col items-center justify-center text-center space-y-4 py-12">
+                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
+                  <Info size={32} className="text-gray-600" />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-[#ffd700] font-bold uppercase tracking-widest">⚠️ Nenhuma Variante Selecionada</p>
+                  <p className="text-sm text-gray-500 max-w-[240px] mx-auto">
+                    Selecione pelo menos uma variante para ver as informações de preparação e regras.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <h4 className="text-xl font-['Cinzel'] text-[#ffd700] text-center drop-shadow-[0_0_10px_rgba(255,215,0,0.2)]">
+                  {preview.title}
+                </h4>
+
+                <div className="space-y-6">
+                  <section className="space-y-3">
+                    <h5 className="text-xs font-['Cinzel'] text-[#ffd700] flex items-center gap-2">
+                      <span className="text-lg">⚙️</span> Preparação
+                    </h5>
+                    <ul className="space-y-2 ml-2">
+                      {preview.preparacao.map((item: string, i: number) => (
+                        <li key={i} className="text-sm text-[#e0e0e0] flex items-start gap-2">
+                          <span className="text-[#ffd700] mt-1">•</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+
+                  <section className="space-y-3">
+                    <h5 className="text-xs font-['Cinzel'] text-[#ffd700] flex items-center gap-2">
+                      <span className="text-lg">🎮</span> Durante o Jogo
+                    </h5>
+                    <ul className="space-y-2 ml-2">
+                      {preview.durante.map((item: string, i: number) => (
+                        <li key={i} className="text-sm text-[#e0e0e0] flex items-start gap-2">
+                          <span className="text-[#ffd700] mt-1">•</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+
+                  <div className="pt-6 border-t border-[#ffd700]/20 grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-[10px] uppercase font-bold text-[#b8860b]">⚖️ Tendência</p>
+                      <p className="text-xs font-bold text-[#ffd700]">{preview.tendencia}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] uppercase font-bold text-[#b8860b]">👥 Ideal para</p>
+                      <p className="text-xs font-bold text-[#ffd700]">{preview.ideal}</p>
+                    </div>
+                  </div>
+
+                  {preview.avisos && (
+                    <div className="p-4 bg-red-500/15 border-l-4 border-red-600 rounded-r-xl space-y-2">
+                      <p className="text-xs font-bold text-red-400 flex items-center gap-2">
+                        <span>⚠️</span> AVISOS
+                      </p>
+                      <ul className="space-y-1">
+                        {preview.avisos.map((item: string, i: number) => (
+                          <li key={i} className="text-xs text-red-200/80 flex items-start gap-2">
+                            <span>⚠</span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t border-[#ffd700]/30 flex gap-3 bg-[#1b263b]/50">
+          <button 
+            onClick={onClose}
+            className="flex-1 py-3 px-4 rounded-xl border border-white/20 text-gray-400 font-bold hover:bg-white/5 transition-all"
+          >
+            CANCELAR
+          </button>
+          <button 
+            disabled={configKey === 'none'}
+            onClick={() => onConfirm(configKey)}
+            className="flex-[1.5] py-3 px-4 rounded-xl bg-[#ffd700] text-[#0d1b2a] font-bold hover:bg-[#ffed4a] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            <CheckCircle2 size={20} /> CONFIRMAR
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onLeave: () => void }) => {
   const socket = useSocket();
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [lancelotConfigId, setLancelotConfigId] = useState<string>('none');
+  const [ladyOfLakeEnabled, setLadyOfLakeEnabled] = useState(false);
+  const [excaliburEnabled, setExcaliburEnabled] = useState(false);
+  const [targetingEnabled, setTargetingEnabled] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showLancelotModal, setShowLancelotModal] = useState(false);
   const playerCount = room.players.length;
   const distribution = TEAM_DISTRIBUTION[playerCount] || { good: 0, evil: 0 };
 
@@ -389,22 +780,46 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
   const canSelectEvil = selectedEvil.length < evilSlots - 1; // -1 for Assassin
 
   const toggleRole = (roleId: string) => {
-    const role = ROLES[roleId];
-    const isSelected = selectedRoles.includes(roleId);
+    if (!isHost) return;
     
-    if (!isSelected) {
-      if (role.team === 'good' && !canSelectGood) return;
-      if (role.team === 'evil' && !canSelectEvil) return;
+    let newRoles = [...selectedRoles];
+    if (newRoles.includes(roleId)) {
+      if (roleId === 'lancelot_good' || roleId === 'lancelot_evil') {
+        newRoles = newRoles.filter(r => r !== 'lancelot_good' && r !== 'lancelot_evil');
+        setLancelotConfigId('none');
+      } else {
+        newRoles = newRoles.filter(r => r !== roleId);
+      }
+    } else {
+      if (roleId === 'lancelot_good' || roleId === 'lancelot_evil') {
+        if (!canSelectGood || !canSelectEvil) {
+          // Check if we can select both
+          const canBoth = (selectedGood.length < goodSlots - 1) && (selectedEvil.length < evilSlots - 1);
+          if (!canBoth) return;
+        }
+        newRoles.push('lancelot_good', 'lancelot_evil');
+        setShowLancelotModal(true);
+      } else {
+        const role = ROLES[roleId];
+        if (role.team === 'good' && !canSelectGood) return;
+        if (role.team === 'evil' && !canSelectEvil) return;
+        newRoles.push(roleId);
+      }
     }
-
-    setSelectedRoles(prev => 
-      prev.includes(roleId) ? prev.filter(id => id !== roleId) : [...prev, roleId]
-    );
+    setSelectedRoles(newRoles);
   };
 
   const handleStart = () => {
     if (playerCount < 5) return alert('Mínimo 5 jogadores');
-    socket.emit('start-game', { roomCode: room.code, selectedRoles });
+    const lancelotConfig = lancelotConfigId === 'none' ? null : { id: lancelotConfigId, ...LANCELOT_CONFIGS[lancelotConfigId as keyof typeof LANCELOT_CONFIGS] };
+    socket.emit('start-game', { 
+      roomCode: room.code, 
+      selectedRoles, 
+      lancelotConfig,
+      ladyOfLakeEnabled,
+      excaliburEnabled,
+      targetingEnabled
+    });
   };
 
   const movePlayer = (index: number, direction: 'up' | 'down') => {
@@ -420,10 +835,37 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
     socket.emit('set-first-leader', { roomCode: room.code, playerId: room.firstLeaderId === playerId ? null : playerId });
   };
 
+  if (showHistory) {
+    return <MatchHistoryView history={room.matchHistory} onBack={() => setShowHistory(false)} />;
+  }
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
+      <LancelotModal 
+        isOpen={showLancelotModal} 
+        onClose={() => {
+          setShowLancelotModal(false);
+          // Se fechou sem confirmar e não tinha config, remove os lancelots
+          if (lancelotConfigId === 'none') {
+            setSelectedRoles(prev => prev.filter(r => r !== 'lancelot_good' && r !== 'lancelot_evil'));
+          }
+        }}
+        onConfirm={(configKey) => {
+          setLancelotConfigId(configKey);
+          setShowLancelotModal(false);
+        }}
+        initialConfig={lancelotConfigId === 'none' ? null : lancelotConfigId}
+      />
       <div className="text-center space-y-2">
-        <h2 className="text-sm uppercase tracking-widest text-gray-500 font-bold">Sala</h2>
+        <div className="flex justify-between items-center px-4">
+          <div className="w-10"></div>
+          <h2 className="text-sm uppercase tracking-widest text-gray-500 font-bold">Sala</h2>
+          {room.matchHistory.length > 0 ? (
+            <button onClick={() => setShowHistory(true)} className="p-2 bg-white/5 rounded-lg hover:bg-white/10 text-[#ffd700]">
+              <Info size={20} />
+            </button>
+          ) : <div className="w-10"></div>}
+        </div>
         <div className="flex flex-col items-center gap-4">
           <div className="flex items-center justify-center gap-4">
             <span className="text-4xl font-mono font-bold text-[#ffd700]">{room.code}</span>
@@ -526,27 +968,50 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
                 </div>
 
                 {/* Optional Good */}
-                <div className="grid grid-cols-1 gap-3">
-                  {['percival'].map(roleId => {
+                <div className="grid grid-cols-2 gap-3">
+                  {['percival', 'lancelot_good'].map(roleId => {
                     const isSelected = selectedRoles.includes(roleId);
                     const disabled = !isSelected && !canSelectGood;
                     return (
-                      <button
+                      <div
                         key={roleId}
-                        onClick={() => toggleRole(roleId)}
-                        disabled={disabled}
-                        className={`p-3 rounded-xl border transition-all text-left flex items-center gap-3 ${
+                        role="button"
+                        tabIndex={disabled ? -1 : 0}
+                        onClick={() => !disabled && toggleRole(roleId)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            !disabled && toggleRole(roleId);
+                          }
+                        }}
+                        className={`p-3 rounded-xl border transition-all text-left flex flex-col gap-1 cursor-pointer ${
                           isSelected 
-                            ? 'border-[#ffd700] bg-[#ffd700]/10' 
+                            ? 'border-[#ffd700] bg-[#ffd700]/10 shadow-[0_0_10px_rgba(255,215,0,0.1)]' 
                             : 'border-white/10 bg-white/5 opacity-60'
                         } ${disabled ? 'opacity-20 grayscale cursor-not-allowed' : ''}`}
                       >
-                        <span className="text-2xl">{ROLES[roleId].icon}</span>
-                        <div className="flex-1">
-                          <div className="font-bold text-sm">{ROLES[roleId].name}</div>
-                          <p className="text-[10px] text-gray-400 leading-tight">{ROLES[roleId].description}</p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">{ROLES[roleId].icon}</span>
+                            <span className="font-bold text-sm">{ROLES[roleId].name}</span>
+                          </div>
+                          {roleId === 'lancelot_good' && isSelected && (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setShowLancelotModal(true); }}
+                              className="p-1 hover:bg-white/10 rounded text-[#ffd700]"
+                            >
+                              <Sword size={12} />
+                            </button>
+                          )}
                         </div>
-                      </button>
+                        <p className="text-[9px] text-gray-400 leading-tight h-6 overflow-hidden">{ROLES[roleId].description}</p>
+                        {roleId === 'lancelot_good' && isSelected && (
+                          <div className="mt-1 text-[8px] text-[#ffd700] font-bold uppercase tracking-tighter flex items-center gap-1">
+                            <div className="w-1 h-1 rounded-full bg-[#ffd700]" />
+                            {lancelotConfigId === 'none' ? 'Configurar' : lancelotConfigId.toUpperCase().replace('_', ' + ')}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -586,29 +1051,111 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
 
                 {/* Optional Evil */}
                 <div className="grid grid-cols-2 gap-3">
-                  {['morgana', 'mordred', 'oberon'].map(roleId => {
+                  {['morgana', 'mordred', 'oberon', 'lancelot_evil'].map(roleId => {
                     const isSelected = selectedRoles.includes(roleId);
                     const disabled = !isSelected && !canSelectEvil;
                     return (
-                      <button
+                      <div
                         key={roleId}
-                        onClick={() => toggleRole(roleId)}
-                        disabled={disabled}
-                        className={`p-3 rounded-xl border transition-all text-left flex flex-col gap-1 ${
+                        role="button"
+                        tabIndex={disabled ? -1 : 0}
+                        onClick={() => !disabled && toggleRole(roleId)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            !disabled && toggleRole(roleId);
+                          }
+                        }}
+                        className={`p-3 rounded-xl border transition-all text-left flex flex-col gap-1 cursor-pointer ${
                           isSelected 
                             ? 'border-red-500 bg-red-500/10' 
                             : 'border-white/10 bg-white/5 opacity-60'
                         } ${disabled ? 'opacity-20 grayscale cursor-not-allowed' : ''}`}
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="text-xl">{ROLES[roleId].icon}</span>
-                          <span className="font-bold text-sm">{ROLES[roleId].name}</span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">{ROLES[roleId].icon}</span>
+                            <span className="font-bold text-sm">{ROLES[roleId].name}</span>
+                          </div>
+                          {roleId === 'lancelot_evil' && isSelected && (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setShowLancelotModal(true); }}
+                              className="p-1 hover:bg-white/10 rounded text-red-400"
+                            >
+                              <Sword size={12} />
+                            </button>
+                          )}
                         </div>
                         <p className="text-[9px] text-gray-400 leading-tight h-6 overflow-hidden">{ROLES[roleId].description}</p>
-                      </button>
+                        {roleId === 'lancelot_evil' && isSelected && (
+                          <div className="mt-1 text-[8px] text-red-400 font-bold uppercase tracking-tighter flex items-center gap-1">
+                            <div className="w-1 h-1 rounded-full bg-red-400" />
+                            {lancelotConfigId === 'none' ? 'Configurar' : lancelotConfigId.toUpperCase().replace('_', ' + ')}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {/* Regras Opcionais */}
+            <div className="space-y-4">
+              <h3 className="text-xs uppercase tracking-widest text-gray-500 font-bold ml-2">Regras Opcionais</h3>
+              <div className="space-y-3">
+                {/* Lady of the Lake */}
+                <button 
+                  onClick={() => setLadyOfLakeEnabled(!ladyOfLakeEnabled)}
+                  className={`w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 ${
+                    ladyOfLakeEnabled ? 'border-[#ffd700] bg-[#ffd700]/10' : 'border-white/5 bg-[#1b263b] opacity-60'
+                  }`}
+                >
+                  <div className={`p-2 rounded-lg ${ladyOfLakeEnabled ? 'bg-[#ffd700]/20 text-[#ffd700]' : 'bg-white/5 text-gray-500'}`}>
+                    <Droplets size={24} />
+                  </div>
+                  <div className="text-left flex-1">
+                    <span className="font-['Cinzel'] font-bold text-sm block">Dama do Lago</span>
+                    <p className="text-[10px] text-gray-400">Permite investigar a lealdade de outros jogadores.</p>
+                  </div>
+                  {ladyOfLakeEnabled && <CheckCircle2 size={16} className="text-[#ffd700]" />}
+                </button>
+
+                {/* Excalibur */}
+                <button 
+                  onClick={() => setExcaliburEnabled(!excaliburEnabled)}
+                  className={`w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 ${
+                    excaliburEnabled ? 'border-[#ffd700] bg-[#ffd700]/10' : 'border-white/5 bg-[#1b263b] opacity-60'
+                  }`}
+                >
+                  <div className={`p-2 rounded-lg ${excaliburEnabled ? 'bg-[#ffd700]/20 text-[#ffd700]' : 'bg-white/5 text-gray-500'}`}>
+                    <Sword size={24} />
+                  </div>
+                  <div className="text-left flex-1">
+                    <span className="font-['Cinzel'] font-bold text-sm block">Excalibur</span>
+                    <p className="text-[10px] text-gray-400">Permite forçar a troca de uma carta de missão.</p>
+                  </div>
+                  {excaliburEnabled && <CheckCircle2 size={16} className="text-[#ffd700]" />}
+                </button>
+
+                {/* Targeting (Missão Alvo) */}
+                <button 
+                  onClick={() => setTargetingEnabled(!targetingEnabled)}
+                  className={`w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 ${
+                    targetingEnabled ? 'border-[#ffd700] bg-[#ffd700]/10' : 'border-white/5 bg-[#1b263b] opacity-60'
+                  }`}
+                >
+                  <div className={`p-2 rounded-lg ${targetingEnabled ? 'bg-[#ffd700]/20 text-[#ffd700]' : 'bg-white/5 text-gray-500'}`}>
+                    <Target size={24} />
+                  </div>
+                  <div className="text-left flex-1">
+                    <span className="font-['Cinzel'] font-bold text-sm block">Missão Alvo</span>
+                    <p className="text-[10px] text-gray-400">Permite escolher a ordem das missões.</p>
+                  </div>
+                  {targetingEnabled && <CheckCircle2 size={16} className="text-[#ffd700]" />}
+                </button>
               </div>
             </div>
           </div>
@@ -643,6 +1190,10 @@ const CharacterRevealView = ({ room, me }: { room: Room; me?: Player }) => {
 
   if (!role) return null;
 
+  const otherLancelot = room.lancelotConfig?.id?.includes('var3') && me?.role?.includes('lancelot')
+    ? room.players.find(p => p.role?.includes('lancelot') && p.id !== me.id)
+    : null;
+
   return (
     <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8 text-center">
       <h2 className="text-3xl font-['Cinzel'] text-[#ffd700]">Seu Destino</h2>
@@ -655,6 +1206,13 @@ const CharacterRevealView = ({ room, me }: { room: Room; me?: Player }) => {
             <h3 className="text-4xl font-['Cinzel'] font-bold">{role.name}</h3>
           </div>
           <p className="text-gray-300 px-4">{role.description}</p>
+
+          {otherLancelot && (
+            <div className="mt-4 p-3 bg-white/5 rounded-xl border border-[#ffd700]/30">
+              <p className="text-[10px] uppercase tracking-widest text-[#ffd700] mb-1">Reconhecimento Mútuo</p>
+              <p className="text-sm font-bold">O outro Lancelot é: {otherLancelot.name}</p>
+            </div>
+          )}
         </div>
 
         {!revealed && (
@@ -696,6 +1254,8 @@ const NarrationView = ({ room, isHost }: { room: Room; isHost: boolean }) => {
     '9': 'Percival, abra os olhos e veja Merlin',
     '9-morgana': 'Percival, abra os olhos e veja Merlin e Morgana',
     '10': 'Percival, feche os olhos. Todos abaixem suas mãos',
+    '11': 'Lancelots, abram os olhos e conheçam-se',
+    '12': 'Lancelots, fechem os olhos',
     '13': 'Todos podem abrir os olhos',
     '14': 'Que comecem as missões de Avalon! Boa sorte, cavaleiros e servos'
   };
@@ -758,10 +1318,35 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
   const leader = room.players[room.currentLeaderIndex];
   const isLeader = playerId === leader.id;
   const [selectedTeam, setSelectedTeam] = useState<string[]>([]);
+  const [targetMissionIndex, setTargetMissionIndex] = useState<number | null>(null);
+  const [ladyResult, setLadyResult] = useState<{ targetName: string; loyalty: 'good' | 'evil' } | null>(null);
+
+  const isLancelot = me?.role?.includes('lancelot');
+  const currentTeam = (me?.role && room.lancelotLoyalty && isLancelot)
+    ? (me.role === 'lancelot_good' ? room.lancelotLoyalty.lancelotGoodTeam : room.lancelotLoyalty.lancelotEvilTeam)
+    : (me?.role ? ROLES[me.role].team : 'good');
+
+  useEffect(() => {
+    const handleLadyResult = ({ holderPlayerId, targetPlayerId, loyalty }: any) => {
+      if (holderPlayerId === playerId) {
+        const target = room.players.find(p => p.id === targetPlayerId);
+        if (target) {
+          setLadyResult({ targetName: target.name, loyalty });
+        }
+      }
+    };
+
+    socket.on('lady-result', handleLadyResult);
+    return () => {
+      socket.off('lady-result', handleLadyResult);
+    };
+  }, [socket, playerId, room.players]);
 
   useEffect(() => {
     if (room.phase === 'team-proposal') {
       setSelectedTeam([]);
+      setTargetMissionIndex(null);
+      setLadyResult(null);
     }
   }, [room.phase, room.currentLeaderIndex]);
 
@@ -777,8 +1362,11 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
   );
 
   const handlePropose = () => {
-    if (selectedTeam.length !== currentMission.size) return alert(`Selecione exatamente ${currentMission.size} jogadores`);
-    socket.emit('propose-team', { roomCode: room.code, teamPlayerIds: selectedTeam });
+    const missionIndex = room.targetingEnabled ? targetMissionIndex : room.currentMissionIndex;
+    if (missionIndex === null) return alert('Selecione uma missão');
+    const missionSize = room.missions[missionIndex].size;
+    if (selectedTeam.length !== missionSize) return alert(`Selecione exatamente ${missionSize} jogadores`);
+    socket.emit('propose-team', { roomCode: room.code, teamPlayerIds: selectedTeam, targetMissionIndex: missionIndex });
   };
 
   const handleVoteTeam = (vote: 'approve' | 'reject') => {
@@ -830,8 +1418,76 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
         </div>
       </div>
 
+      {/* Lancelot Loyalty Deck */}
+      {room.lancelotConfig && room.phase !== 'game-over' && (
+        <div className="bg-purple-500/5 border border-purple-500/20 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <RefreshCw size={14} className="text-purple-400" />
+              <h3 className="text-[10px] uppercase tracking-widest text-purple-400 font-bold">Baralho de Lealdade</h3>
+            </div>
+            <span className="text-[9px] text-gray-500 font-mono">
+              {room.lancelotConfig.variant.toUpperCase()} • INÍCIO: R{room.lancelotConfig.startsAt}
+            </span>
+          </div>
+          <div className="flex gap-2 justify-center">
+            {room.loyaltyDeckVisible.map((card, i) => {
+              const isActive = i === room.loyaltyDeckIndex - 1;
+              return (
+                <div 
+                  key={i}
+                  className={`w-12 h-16 rounded-lg border-2 flex flex-col items-center justify-center transition-all duration-500 ${
+                    card === 'hidden' 
+                      ? 'bg-gray-800 border-gray-700' 
+                      : card === 'switch' 
+                        ? 'bg-orange-600 border-orange-400' 
+                        : 'bg-gray-700/50 border-gray-600/50'
+                  } ${isActive 
+                    ? 'scale-110 z-10 shadow-[0_0_20px_rgba(168,85,247,0.8)] border-purple-400 ring-2 ring-purple-400/50' 
+                    : 'opacity-40 grayscale-[0.3]'
+                  }`}
+                >
+                  {card === 'hidden' ? (
+                    <span className="text-gray-600 font-black text-xl">?</span>
+                  ) : (
+                    <>
+                      <span className={`text-[8px] font-bold mb-0.5 ${isActive ? 'text-white' : 'text-white/30'}`}>R{room.lancelotConfig!.startsAt + i}</span>
+                      {card === 'switch' ? (
+                        <RefreshCw size={14} className={`${isActive ? 'text-white' : 'text-white/40'} mb-1`} />
+                      ) : (
+                        <Equal size={14} className={`${isActive ? 'text-white' : 'text-white/20'} mb-1`} />
+                      )}
+                      <span className={`text-[9px] font-black text-center px-1 leading-tight ${isActive ? 'text-white' : 'text-white/30'}`}>
+                        {card === 'switch' ? 'TROCA' : 'IGUAL'}
+                      </span>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <Card className="space-y-6">
+        {ladyResult && (
+          <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl text-center space-y-2">
+            <h4 className="text-xs uppercase tracking-widest text-[#ffd700] font-bold">Resultado da Investigação</h4>
+            <p className="text-sm">
+              O jogador <span className="font-bold">{ladyResult.targetName}</span> é:
+            </p>
+            <Badge team={ladyResult.loyalty}>{ladyResult.loyalty === 'good' ? 'LEAL' : 'DESLEAL'}</Badge>
+          </div>
+        )}
+
+        {room.lancelotLoyalty?.swapOccurred && room.phase !== 'game-over' && (
+          <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl text-center animate-pulse">
+            <p className="text-xs uppercase tracking-widest text-purple-400 font-bold">ATENÇÃO: TROCA DE LEALDADE!</p>
+            <p className="text-[10px] text-gray-400">Os Lancelots trocaram de lado nesta rodada.</p>
+          </div>
+        )}
+
         {room.phase === 'team-proposal' && (
           <div className="space-y-6 text-center">
             <div className="space-y-2">
@@ -848,20 +1504,70 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
 
             {isLeader ? (
               <div className="space-y-4">
+                {room.targetingEnabled && (
+                  <div className="space-y-2">
+                    <p className="text-xs uppercase tracking-widest text-gray-500 font-bold">Selecione a Missão</p>
+                    <div className="flex justify-center gap-2">
+                      {room.missions.map((m, i) => {
+                        const isAttempted = room.attemptedMissions.includes(i);
+                        const isSelected = targetMissionIndex === i;
+                        return (
+                          <button
+                            key={i}
+                            disabled={isAttempted}
+                            onClick={() => setTargetMissionIndex(i)}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border-2 transition-all ${
+                              isAttempted ? 'bg-gray-800 border-gray-700 text-gray-600 opacity-40' :
+                              isSelected ? 'bg-[#ffd700] text-[#0d1b2a] border-white scale-110' :
+                              'bg-white/5 border-white/10 text-gray-400 hover:border-white/30'
+                            }`}
+                          >
+                            {m.size}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-2">
-                  {room.players.map(p => (
-                    <button
-                      key={p.id}
-                      onClick={() => setSelectedTeam(prev => prev.includes(p.id) ? prev.filter(id => id !== p.id) : prev.length < currentMission.size ? [...prev, p.id] : prev)}
-                      className={`p-3 rounded-xl border-2 transition-all font-bold ${
-                        selectedTeam.includes(p.id) ? 'border-[#ffd700] bg-[#ffd700]/10' : 'border-white/5 bg-white/5'
-                      }`}
-                    >
-                      {formatName(p)}
-                    </button>
-                  ))}
+                  {room.players.map(p => {
+                    const missionIndex = room.targetingEnabled ? targetMissionIndex : room.currentMissionIndex;
+                    const missionSize = missionIndex !== null ? room.missions[missionIndex].size : 0;
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => setSelectedTeam(prev => prev.includes(p.id) ? prev.filter(id => id !== p.id) : prev.length < missionSize ? [...prev, p.id] : prev)}
+                        className={`p-3 rounded-xl border-2 transition-all font-bold ${
+                          selectedTeam.includes(p.id) ? 'border-[#ffd700] bg-[#ffd700]/10' : 'border-white/5 bg-white/5'
+                        }`}
+                      >
+                        {formatName(p)}
+                      </button>
+                    );
+                  })}
                 </div>
-                <Button onClick={handlePropose} disabled={selectedTeam.length !== currentMission.size}>Confirmar Equipe</Button>
+                <Button onClick={handlePropose} disabled={selectedTeam.length === 0 || (room.targetingEnabled && targetMissionIndex === null)}>Confirmar Equipe</Button>
+
+                {room.excaliburEnabled && !room.excaliburUsed && (
+                  <div className="pt-4 border-t border-white/5 space-y-3">
+                    <p className="text-xs uppercase tracking-widest text-gray-500 font-bold">Entregar Excalibur</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {room.players.filter(p => p.id !== playerId).map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => socket.emit('assign-excalibur', { roomCode: room.code, targetPlayerId: p.id })}
+                          className={`p-2 rounded-lg border transition-all text-xs font-bold ${
+                            room.excaliburHolder === p.id ? 'border-[#ffd700] bg-[#ffd700]/10 text-[#ffd700]' : 'border-white/10 bg-white/5 text-gray-400'
+                          }`}
+                        >
+                          {p.name}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-gray-500 italic">O líder deve entregar a Excalibur a outro cavaleiro da equipe (ou qualquer jogador dependendo da sua interpretação, mas geralmente é para alguém da equipe ou apenas outro jogador).</p>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="py-8 animate-pulse text-gray-500 italic">Aguardando a formação da equipe...</div>
@@ -930,8 +1636,10 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
                   <div className="space-y-4">
                     <p className="text-gray-400">Escolha seu destino na missão:</p>
                     <div className="flex gap-4">
-                      <Button onClick={() => handleVoteMission('success')} className="flex-1 bg-blue-600 hover:bg-blue-500">🏆 Sucesso</Button>
-                      {me?.role && ROLES[me.role].team === 'evil' && (
+                      {(!isLancelot || !room.lancelotConfig?.mandatory || currentTeam === 'good') && (
+                        <Button onClick={() => handleVoteMission('success')} className="flex-1 bg-blue-600 hover:bg-blue-500">🏆 Sucesso</Button>
+                      )}
+                      {currentTeam === 'evil' && (
                         <Button variant="danger" onClick={() => handleVoteMission('fail')} className="flex-1">💣 Falha</Button>
                       )}
                     </div>
@@ -985,6 +1693,38 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
           </div>
         )}
 
+        {room.phase === 'excalibur-usage' && (
+          <div className="space-y-6 text-center">
+            <div className="space-y-2">
+              <h3 className="text-2xl font-['Cinzel'] text-[#ffd700]">Excalibur</h3>
+              <p className="text-gray-400">
+                {room.excaliburHolder === playerId 
+                  ? 'Você possui a Excalibur! Pode forçar um jogador da equipe a trocar sua carta.' 
+                  : `${room.players.find(p => p.id === room.excaliburHolder)?.name} está decidindo se usa a Excalibur.`}
+              </p>
+            </div>
+
+            {room.excaliburHolder === playerId ? (
+              <div className="space-y-4">
+                <p className="text-sm font-bold">Escolha um jogador da equipe para trocar a carta:</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {room.proposedTeam.map(id => (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => socket.emit('use-excalibur', { roomCode: room.code, targetPlayerId: id })}
+                    >
+                      {room.players.find(p => p.id === id)?.name}
+                    </Button>
+                  ))}
+                </div>
+                <Button variant="secondary" onClick={() => socket.emit('skip-excalibur', { roomCode: room.code })}>Pular Uso</Button>
+              </div>
+            ) : (
+              <div className="py-8 animate-pulse text-[#ffd700] italic">Aguardando portador da Excalibur...</div>
+            )}
+          </div>
+        )}
+
         {room.phase === 'mission-result' && room.lastMissionVoteResult && (
           <div className="space-y-6 text-center">
             <div className="space-y-2">
@@ -993,6 +1733,22 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
               </h3>
               <p className="text-gray-400">Resultado dos votos (anônimos):</p>
             </div>
+
+            {room.excaliburUsed && room.excaliburTarget && (
+              <div className="p-3 bg-[#ffd700]/10 border border-[#ffd700]/30 rounded-xl max-w-xs mx-auto space-y-1">
+                <p className="text-[10px] uppercase tracking-widest text-[#ffd700] font-bold">Excalibur Usada</p>
+                <p className="text-xs">
+                  O voto de <span className="font-bold">{room.players.find(p => p.id === room.excaliburTarget)?.name}</span> foi revelado como:
+                </p>
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-xl">{room.excaliburReveal === 'success' ? '🏆' : '💣'}</span>
+                  <span className={`font-bold ${room.excaliburReveal === 'success' ? 'text-blue-400' : 'text-red-400'}`}>
+                    {room.excaliburReveal === 'success' ? 'SUCESSO' : 'FALHA'}
+                  </span>
+                </div>
+                <p className="text-[9px] text-gray-500 italic">(O voto foi invertido para o resultado final)</p>
+              </div>
+            )}
 
             <div className="flex justify-center gap-4">
               <div className="flex flex-col items-center p-6 bg-blue-600/20 rounded-2xl border-2 border-blue-600/50 w-32">
@@ -1024,6 +1780,37 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
 
             {isHost && (
               <Button onClick={() => socket.emit('continue-game', { roomCode: room.code })}>Continuar</Button>
+            )}
+          </div>
+        )}
+
+        {room.phase === 'lady-of-the-lake' && (
+          <div className="space-y-6 text-center">
+            <div className="space-y-2">
+              <h3 className="text-2xl font-['Cinzel'] text-[#ffd700]">Dama do Lago</h3>
+              <p className="text-gray-400">
+                {room.ladyOfLakeHolder === playerId 
+                  ? 'Você é a Dama do Lago! Escolha um jogador para investigar sua lealdade.' 
+                  : `${room.players.find(p => p.id === room.ladyOfLakeHolder)?.name} está investigando alguém.`}
+              </p>
+            </div>
+
+            {room.ladyOfLakeHolder === playerId ? (
+              <div className="space-y-4">
+                <p className="text-sm font-bold">Escolha um jogador (que ainda não foi investigado):</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {room.players.filter(p => p.id !== playerId && !room.ladyOfLakeUsed.includes(p.id)).map(p => (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => socket.emit('lady-examine', { roomCode: room.code, targetPlayerId: p.id })}
+                    >
+                      {p.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="py-8 animate-pulse text-[#ffd700] italic">Aguardando Dama do Lago...</div>
             )}
           </div>
         )}
@@ -1109,15 +1896,30 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
             <div className="space-y-4">
               <h4 className="text-sm uppercase tracking-widest text-gray-500 font-bold">Revelação Final</h4>
               <div className="grid grid-cols-1 gap-2">
-                {room.players.map(p => (
-                  <div key={p.id} className="flex items-center justify-between bg-black/20 p-3 rounded-xl border border-white/5">
-                    <span className="font-bold">{formatName(p)}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-400">{p.role && ROLES[p.role].name}</span>
-                      <span>{p.role && ROLES[p.role].icon}</span>
+                {room.players.map(p => {
+                  const isLancelot = p.role?.includes('lancelot');
+                  const playerTeam = (p.role && room.lancelotLoyalty && isLancelot)
+                    ? (p.role === 'lancelot_good' ? room.lancelotLoyalty.lancelotGoodTeam : room.lancelotLoyalty.lancelotEvilTeam)
+                    : (p.role ? ROLES[p.role].team : 'good');
+                  const won = playerTeam === room.winner;
+
+                  return (
+                    <div 
+                      key={p.id} 
+                      className={`flex items-center justify-between bg-black/20 p-3 rounded-xl border transition-all duration-500 ${
+                        won 
+                          ? 'border-white/20 shadow-[0_0_10px_rgba(255,255,255,0.1)]' 
+                          : 'border-white/5 opacity-30 grayscale-[0.5]'
+                      }`}
+                    >
+                      <span className={`font-bold ${won ? 'text-white' : 'text-gray-500'}`}>{formatName(p)}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs ${won ? 'text-gray-400' : 'text-gray-600'}`}>{p.role && ROLES[p.role].name}</span>
+                        <span className={won ? '' : 'opacity-50'}>{p.role && ROLES[p.role].icon}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -1137,7 +1939,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
 
       {/* Footer Player Info */}
       {me?.role && room.phase !== 'game-over' && (
-        <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto">
+        <div className="mt-8 max-w-md mx-auto">
           <div className="bg-[#1b263b] border border-[#ffd700]/30 rounded-xl p-3 flex items-center justify-between shadow-2xl">
             <div className="flex items-center gap-3">
               <span className="text-2xl">{ROLES[me.role].icon}</span>
@@ -1148,6 +1950,15 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
             </div>
             <Badge team={ROLES[me.role].team}>{ROLES[me.role].team === 'good' ? 'BEM' : 'MAL'}</Badge>
           </div>
+          
+          {me.role.includes('lancelot') && room.lancelotLoyalty && (
+            <div className="mt-2 bg-purple-500/20 border border-purple-500/40 rounded-xl p-2 text-center">
+              <p className="text-[9px] uppercase font-bold text-purple-300 tracking-widest">Sua Lealdade Atual</p>
+              <p className="text-sm font-black text-white">
+                {me.role === 'lancelot_good' ? room.lancelotLoyalty.lancelotGoodTeam.toUpperCase() : room.lancelotLoyalty.lancelotEvilTeam.toUpperCase()}
+              </p>
+            </div>
+          )}
         </div>
       )}
     </motion.div>

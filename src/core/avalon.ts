@@ -73,7 +73,47 @@ export const ROLES: Record<string, RoleInfo> = {
     description: 'Não conhece os outros servos do Mal, e eles não o conhecem.',
     icon: '👻',
   },
+  lancelot_good: {
+    id: 'lancelot_good',
+    name: 'Lancelot Bom',
+    team: 'good',
+    description: 'Começa leal ao Bem. Se trocar de lealdade, passa a jogar pelo Mal.',
+    icon: '👍🏻',
+  },
+  lancelot_evil: {
+    id: 'lancelot_evil',
+    name: 'Lancelot Mau',
+    team: 'evil',
+    description: 'Começa leal ao Mal. Não abre os olhos com os outros Minions (levanta o polegar). Se trocar de lealdade, passa a jogar pelo Bem.',
+    icon: '👎🏻',
+  },
 };
+
+export interface LancelotConfig {
+  variant: 'var1' | 'var2' | 'var3' | 'var1_var2' | 'var1_var3' | 'var2_var3' | null;
+  deckSize: number;
+  deckRevealed: boolean;
+  startsAt: number;
+  mandatory: boolean;
+  recognition: boolean;
+}
+
+export const LANCELOT_CONFIGS: Record<string, LancelotConfig> = {
+  var1: { variant: 'var1', deckSize: 5, deckRevealed: false, startsAt: 3, mandatory: false, recognition: false },
+  var2: { variant: 'var2', deckSize: 7, deckRevealed: true, startsAt: 1, mandatory: true, recognition: false },
+  var3: { variant: 'var3', deckSize: 0, deckRevealed: false, startsAt: 0, mandatory: false, recognition: true },
+  var1_var2: { variant: 'var1_var2', deckSize: 7, deckRevealed: false, startsAt: 1, mandatory: true, recognition: false },
+  var1_var3: { variant: 'var1_var3', deckSize: 5, deckRevealed: false, startsAt: 3, mandatory: false, recognition: true },
+  var2_var3: { variant: 'var2_var3', deckSize: 7, deckRevealed: true, startsAt: 1, mandatory: true, recognition: true },
+};
+
+export function generateLoyaltyDeck(deckSize: number): ('none' | 'switch')[] {
+  if (deckSize === 0) return [];
+  const deck: ('none' | 'switch')[] = Array(deckSize).fill('none');
+  deck[0] = 'switch';
+  deck[1] = 'switch';
+  return deck.sort(() => Math.random() - 0.5);
+}
 
 export const TEAM_DISTRIBUTION: Record<number, { good: number; evil: number }> = {
   5: { good: 3, evil: 2 },
@@ -135,19 +175,37 @@ export function assignRoles(playerIds: string[], selectedOptionalRoles: string[]
   return assignments;
 }
 
-export function getNarrationSequence(selectedRoles: string[]): string[] {
-  const sequence: string[] = ['1', '2', '3'];
+export function getNarrationSequence(selectedRoles: string[], lancelotConfig?: LancelotConfig | null, playerCount?: number): string[] {
+  const sequence: string[] = ['1', '2'];
 
-  if (selectedRoles.includes('oberon')) {
-    sequence.push('4-oberon');
-  } else {
-    sequence.push('4');
-  }
+  const hasLancelots = selectedRoles.includes('lancelot_good') && selectedRoles.includes('lancelot_evil');
+  const variant = lancelotConfig?.variant;
+  const usePolegar = hasLancelots && (variant === 'var1' || variant === 'var2' || variant === 'var1_var2' || variant === 'var1_var3' || variant === 'var2_var3');
 
-  if (selectedRoles.includes('mordred')) {
-    sequence.push('5-mordred');
+  if (usePolegar) {
+    sequence.push('3-lancelot');
+    if (selectedRoles.includes('oberon')) {
+      sequence.push('4-oberon-lancelot');
+    } else {
+      sequence.push('4-lancelot');
+    }
+    if (selectedRoles.includes('mordred')) {
+      sequence.push('5-mordred-lancelot');
+    } else {
+      sequence.push('5-lancelot');
+    }
   } else {
-    sequence.push('5');
+    sequence.push('3');
+    if (selectedRoles.includes('oberon')) {
+      sequence.push('4-oberon');
+    } else {
+      sequence.push('4');
+    }
+    if (selectedRoles.includes('mordred')) {
+      sequence.push('5-mordred');
+    } else {
+      sequence.push('5');
+    }
   }
 
   sequence.push('6', '7');
@@ -159,6 +217,10 @@ export function getNarrationSequence(selectedRoles: string[]): string[] {
       sequence.push('8', '9');
     }
     sequence.push('10');
+  }
+
+  if (lancelotConfig?.recognition && (playerCount || 0) >= 8) {
+    sequence.push('11', '12');
   }
 
   sequence.push('13', '14');
