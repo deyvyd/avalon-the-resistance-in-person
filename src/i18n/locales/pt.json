@@ -1,1 +1,69 @@
-{}
+{
+  "roles": {
+    "merlin": {
+      "name": "Merlin",
+      "description": "Sabe quem são todos os servos do mal (exceto Mordred). Deve guiar o Bem sem revelar sua identidade."
+    },
+    "assassin": {
+      "name": "Assassino",
+      "description": "Tenta identificar e assassinar Merlin se o Bem vencer 3 missões."
+    },
+    "servant": {
+      "name": "Servo de Arthur",
+      "description": "Um servo leal de Arthur. Não tem poderes especiais."
+    },
+    "minion": {
+      "name": "Minion de Mordred",
+      "description": "Um servo do mal. Conhece os outros servos do mal."
+    },
+    "percival": {
+      "name": "Percival",
+      "description": "Vê quem pode ser Merlin (e Morgana). Ajuda a proteger Merlin."
+    },
+    "morgana": {
+      "name": "Morgana",
+      "description": "Aparece como \"possível Merlin\" para Percival."
+    },
+    "mordred": {
+      "name": "Mordred",
+      "description": "Invisível para Merlin. Muito poderoso."
+    },
+    "oberon": {
+      "name": "Oberon",
+      "description": "Não conhece os outros servos do Mal, e eles não o conhecem."
+    },
+    "lancelot_good": {
+      "name": "Lancelot Bom",
+      "description": "Começa leal ao Bem. Se trocar de lealdade, passa a jogar pelo Mal."
+    },
+    "lancelot_evil": {
+      "name": "Lancelot Mau",
+      "description": "Começa leal ao Mal. Não abre os olhos com os outros Minions (levanta o polegar). Se trocar de lealdade, passa a jogar pelo Bem."
+    }
+  },
+  "narration": {
+    "1": "Bem-vindos ao Avalon...",
+    "2": "Todos fechem os olhos...",
+    "3": "Servos do Mal, levantem o polegar",
+    "3-lancelot": "Servos do Mal, levantem o polegar",
+    "4": "Servos do Mal, abram os olhos e conheçam seus companheiros",
+    "4-oberon": "Servos do Mal, exceto Oberon, abram os olhos...",
+    "4-lancelot": "Servos do Mal, abram os olhos e conheçam seus companheiros",
+    "4-oberon-lancelot": "Servos do Mal, exceto Oberon, abram os olhos...",
+    "5": "Servos do Mal, fechem os olhos",
+    "5-mordred": "Servos do Mal, fechem os olhos. Mordred, abaixe seu polegar",
+    "5-lancelot": "Servos do Mal, fechem os olhos",
+    "5-mordred-lancelot": "Servos do Mal, fechem os olhos. Mordred, abaixe seu polegar",
+    "6": "Merlin, abra os olhos e veja os servos do mal",
+    "7": "Servos do Mal, abaixem seus polegares. Merlin, feche os olhos",
+    "8": "Merlin, levante o polegar",
+    "8-morgana": "Merlin e Morgana, levantem o polegar",
+    "9": "Percival, abra os olhos e veja Merlin",
+    "9-morgana": "Percival, abra os olhos e veja Merlin e Morgana",
+    "10": "Percival, feche os olhos. Todos abaixem suas mãos",
+    "11": "Lancelots, abram os olhos e conheçam-se",
+    "12": "Lancelots, fechem os olhos",
+    "13": "Todos podem abrir os olhos",
+    "14": "Que comecem as missões de Avalon! Boa sorte, cavaleiros e servos"
+  }
+}

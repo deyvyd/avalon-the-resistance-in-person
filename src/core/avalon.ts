@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { TFunction } from 'i18next';
+
 export type Team = 'good' | 'evil';
 
 export interface RoleInfo {
@@ -88,6 +90,16 @@ export const ROLES: Record<string, RoleInfo> = {
     icon: '👎🏻',
   },
 };
+
+export function getRoleInfo(roleId: string, t: TFunction): RoleInfo {
+  const base = ROLES[roleId];
+  if (!base) return { id: roleId, name: roleId, team: 'good', description: '', icon: '' };
+  return {
+    ...base,
+    name: t(`roles.${roleId}.name`, base.name),
+    description: t(`roles.${roleId}.description`, base.description),
+  };
+}
 
 export interface LancelotConfig {
   variant: 'var1' | 'var2' | 'var3' | 'var1_var2' | 'var1_var3' | 'var2_var3' | null;
@@ -195,7 +207,9 @@ export function shouldPauseAfter(audioFile: string): boolean {
 export function generateNarrationSequence(
   roles: Roles,
   lancelotConfig: LancelotConfig | null,
-  playerCount: number
+  playerCount: number,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _t?: TFunction
 ): string[] {
   const sequence: string[] = [];
   const hasLancelots = roles.lancelotGood || roles.lancelotEvil;
