@@ -153,7 +153,7 @@ const Term = ({ pt, en }: { pt: string; en: string }) => (
 // --- Main Component ---
 
 export const GameManual = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -364,7 +364,7 @@ export const GameManual = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
       icon: <Gamepad2 size={20} />,
       searchText: 'Como Jogar O jogo consiste em várias rodadas. Cada rodada tem duas fases: 1. Fase de Formação de Equipe 2. Fase da Missão',
       render: () => {
-        const isEn = t('manual.section_como_jogar_title') === 'How to Play';
+        const isEn = i18n.language === 'en';
         return (
           <div className="space-y-6">
             <p className="text-sm text-[#e0e0e0]">{isEn
@@ -461,7 +461,7 @@ export const GameManual = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
       icon: <Flag size={20} />,
       searchText: 'Final do Jogo Condições de Vitória do BEM Condições de Vitória do MAL Tentativa de Assassinato Resumo das Vitórias',
       render: () => {
-        const isEn = t('manual.section_final_title') === 'End of Game';
+        const isEn = i18n.language === 'en';
         return (
           <div className="space-y-6">
             <div>
@@ -529,7 +529,7 @@ export const GameManual = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
       icon: <ShieldCheck size={20} />,
       searchText: 'Regras Opcionais Avançadas Missão Alvo Targeting Excalibur Dama do Lago Lady of the Lake Lancelot',
       render: () => {
-        const isEn = t('manual.section_regras_title') === 'Advanced Optional Rules';
+        const isEn = i18n.language === 'en';
         return (
           <div className="space-y-6">
             <p className="text-sm text-[#e0e0e0]">{isEn
@@ -686,7 +686,7 @@ export const GameManual = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
       icon: <Lightbulb size={20} />,
       searchText: 'Dicas Estratégicas Para o BEM Para o MAL Dicas Gerais',
       render: () => {
-        const isEn = t('manual.section_dicas_title') === 'Strategic Tips';
+        const isEn = i18n.language === 'en';
         return (
           <div className="space-y-6">
             <Box type="highlight">
