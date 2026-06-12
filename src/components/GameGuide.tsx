@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  X, 
-  ChevronLeft, 
-  ChevronRight, 
-  Info, 
-  Shield, 
-  Skull, 
-  Sword, 
-  Target, 
-  Droplets, 
+import {
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  Shield,
+  Skull,
+  Sword,
+  Target,
+  Droplets,
   RefreshCw,
   CheckCircle2,
   XCircle,
@@ -17,6 +18,8 @@ import {
   MapPinned,
   Check
 } from 'lucide-react';
+
+type TFunction = (key: string, opts?: Record<string, unknown>) => string;
 
 type StepType = 'setup' | 'revelation' | 'mission' | 'optional' | 'assassination';
 
@@ -41,6 +44,7 @@ interface LancelotConfig {
 }
 
 const generateGameSteps = (
+  t: TFunction,
   lancelots: boolean,
   lancelotConfig: LancelotConfig | null,
   excalibur: boolean,
@@ -52,32 +56,32 @@ const generateGameSteps = (
   // ETAPA 1 — Preparação do Jogo
   steps.push({
     type: 'setup',
-    badges: ['Preparação'],
-    title: '🃏 Preparação do Jogo',
+    badges: [t('guide.step_setup_badge')],
+    title: t('guide.step_setup_title'),
     actions: [
-      { text: 'Embaralhe as cartas de personagem conforme o número de jogadores' },
-      { text: 'Distribua as cartas secretamente para cada jogador' },
-      { text: 'Cada jogador olha sua carta sem revelar aos outros' }
+      { text: t('guide.step_setup_a1') },
+      { text: t('guide.step_setup_a2') },
+      { text: t('guide.step_setup_a3') }
     ]
   });
 
   // ETAPA 2 — Narração Inicial
-  let revelationDesc = "O mal se reconhece e Merlin reconhece o mal.";
+  let revelationDesc = t('guide.revelation_default');
   if (lancelots && lancelotConfig) {
     const { hasSwitches, recognition } = lancelotConfig;
     if (hasSwitches && !recognition) {
-      revelationDesc = "O mal se reconhece (Lancelot Mau levanta polegar, não abre os olhos). Merlin reconhece o mal. Lancelots NÃO se reconhecem entre si.";
+      revelationDesc = t('guide.revelation_switches_no_recognition');
     } else if (!hasSwitches && recognition) {
-      revelationDesc = "O mal se reconhece e Merlin reconhece o mal. Ao final (8+ jogadores), os dois Lancelots abrem os olhos e se reconhecem entre si.";
+      revelationDesc = t('guide.revelation_no_switches_recognition');
     } else if (hasSwitches && recognition) {
-      revelationDesc = "O mal se reconhece (Lancelot Mau levanta polegar, não abre os olhos). Merlin reconhece o mal. Ao final (8+ jogadores), os dois Lancelots se reconhecem entre si.";
+      revelationDesc = t('guide.revelation_switches_recognition');
     }
   }
 
   steps.push({
     type: 'revelation',
-    badges: ['Revelação'],
-    title: '🗣️ Narração Inicial',
+    badges: [t('guide.step_revelation_badge')],
+    title: t('guide.step_revelation_title'),
     description: revelationDesc
   });
 
@@ -85,29 +89,29 @@ const generateGameSteps = (
   if (lancelots && lancelotConfig?.hasSwitches) {
     steps.push({
       type: 'optional',
-      badges: ['Opcional'],
-      title: '🔄 Troca de Lado dos Lancelots',
+      badges: [t('guide.step_lancelot_badge')],
+      title: t('guide.step_lancelot_title'),
       actions: [
-        { 
-          text: 'A partir da 3ª rodada e em cada rodada seguinte, vire 1 carta do baralho de Lealdade',
+        {
+          text: t('guide.step_lancelot_a1'),
           subactions: [
-            'Se for uma carta vazia (Sem Mudança): Nada acontece, jogo continua',
-            'Se for uma carta de Troca de Lado: Os dois Lancelots TROCAM DE LADO secretamente!'
+            t('guide.step_lancelot_a1_sub1'),
+            t('guide.step_lancelot_a1_sub2')
           ]
         }
       ],
-      note: 'A troca afeta tudo: condições de vitória, cartas de missão e estratégia'
+      note: t('guide.step_lancelot_note')
     });
   }
 
   // ETAPA 4 — Definição do Líder da Rodada
   steps.push({
     type: 'mission',
-    badges: ['Missão'],
-    title: '👑 Definição do Líder da Rodada',
-    note: 'O primeiro líder é decidido aleatoriamente no início do jogo',
+    badges: [t('guide.step_leader_badge')],
+    title: t('guide.step_leader_title'),
+    note: t('guide.step_leader_note'),
     actions: [
-      { text: 'A liderança é alterada a cada rodada no sentido horário' }
+      { text: t('guide.step_leader_a1') }
     ]
   });
 
@@ -115,117 +119,117 @@ const generateGameSteps = (
   if (targeting) {
     steps.push({
       type: 'optional',
-      badges: ['Opcional'],
-      title: '🎯 Missão Alvo - Fase de Escolha da Missão',
+      badges: [t('guide.step_targeting_badge')],
+      title: t('guide.step_targeting_title'),
       actions: [
-        { text: 'O líder pode escolher QUAL missão a equipe tentará completar (em qualquer ordem)' },
-        { text: 'A 5ª missão só pode ser tentada após 2 missões bem-sucedidas' },
-        { text: 'Uma missão tentada não pode ser tentada novamente' }
+        { text: t('guide.step_targeting_a1') },
+        { text: t('guide.step_targeting_a2') },
+        { text: t('guide.step_targeting_a3') }
       ],
-      note: 'A escolha da missão pode influenciar na aprovação ou não da equipe formada.'
+      note: t('guide.step_targeting_note')
     });
   }
 
   // ETAPA 6 — Fase de Formação de Equipe
   steps.push({
     type: 'mission',
-    badges: ['Missão'],
-    title: '👨🏻👩🏻👧🏻👧🏻 Fase de Formação de Equipe',
+    badges: [t('guide.step_team_badge')],
+    title: t('guide.step_team_title'),
     actions: [
-      { text: 'O líder propõe uma equipe para a missão e todos discutem a proposta' },
-      { 
-        text: 'Cada jogador vota secretamente (Aprovar/Rejeitar) e todos exibem os votos simultaneamente',
+      { text: t('guide.step_team_a1') },
+      {
+        text: t('guide.step_team_a2'),
         subactions: [
-          'Se a maioria aprovar → A equipe vai para a missão',
-          'Se a empatar ou a maioria rejeitar → o líder passa a ser o próximo na ordem do jogo (sentido horário)'
+          t('guide.step_team_a2_sub1'),
+          t('guide.step_team_a2_sub2')
         ]
       }
     ],
-    note: '5 rejeições consecutivas = Mal vence automaticamente!'
+    note: t('guide.step_team_note')
   });
 
   // ETAPA 7 — Uso de Excalibur
   if (excalibur) {
     steps.push({
       type: 'optional',
-      badges: ['Opcional'],
-      title: '🗡️ Uso de Excalibur',
+      badges: [t('guide.step_excalibur_badge')],
+      title: t('guide.step_excalibur_title'),
       actions: [
-        { text: 'O líder dá Excalibur a um membro da equipe (não pode manter com ele)' },
-        { text: 'Cada jogador da equipe coloca sua carta virada para baixo na sua frente' },
-        { text: 'ANTES de coletar as cartas, o portador de Excalibur pode mandar UM jogador trocar sua carta' },
-        { text: 'O portador olha a carta original do jogador (para saber qual foi a escolha inicial)' },
-        { text: 'O líder então coleta e embaralha as cartas normalmente' }
+        { text: t('guide.step_excalibur_a1') },
+        { text: t('guide.step_excalibur_a2') },
+        { text: t('guide.step_excalibur_a3') },
+        { text: t('guide.step_excalibur_a4') },
+        { text: t('guide.step_excalibur_a5') }
       ],
-      note: 'Pode ser usado pelo Bem ou pelo Mal para alterar estrategicamente o resultado!'
+      note: t('guide.step_excalibur_note')
     });
   }
 
   // ETAPA 8 — Fase da Missão
   steps.push({
     type: 'mission',
-    badges: ['Missão'],
-    title: '⚔️ Fase da Missão',
+    badges: [t('guide.step_mission_badge')],
+    title: t('guide.step_mission_title'),
     actions: [
-      { text: 'Cada membro da equipe recebe cartas de Missão (Sucesso/Falha) e escolhe secretamente uma para jogar' },
-      { text: 'Cada membro da equipe joga a carta escolhida virada para baixo' },
-      { 
-        text: 'O líder embaralha e revela as cartas jogadas',
+      { text: t('guide.step_mission_a1') },
+      { text: t('guide.step_mission_a2') },
+      {
+        text: t('guide.step_mission_a3'),
         subactions: [
-          'Se TODAS as cartas forem Sucesso → Missão é bem-sucedida',
-          'Se houver UMA ou mais cartas de Falha → Missão mal-sucedida'
+          t('guide.step_mission_a3_sub1'),
+          t('guide.step_mission_a3_sub2')
         ]
       },
-      { text: 'Marque o resultado da missão no tabuleiro (vitória do BEM ou do MAL)' }
+      { text: t('guide.step_mission_a4') }
     ],
-    note: 'O BEM só pode jogar cartas de Sucesso. O MAL pode jogar Sucesso ou Falha.\n4ª missão com 7+ jogadores precisa de 2 Falhas para falhar'
+    note: t('guide.step_mission_note')
   });
 
   // ETAPA 9 — Dama do Lago
   if (ladyOfLake) {
     steps.push({
       type: 'optional',
-      badges: ['Opcional'],
-      title: '💧 Dama do Lago',
+      badges: [t('guide.step_lady_badge')],
+      title: t('guide.step_lady_title'),
       actions: [
-        { text: 'O token da Dama do Lago começa com o jogador imediatamente à esquerda (sentido horário) do líder inicial.' },
-        { text: 'Após a 2ª, 3ª e 4ª missões, o portador do token escolhe outro jogador para examinar' },
-        { text: 'O jogador examinado recebe as 2 Cartas de Lealdade e passa secretamente a carta correspondente à sua lealdade' },
-        { text: 'O portador vê a lealdade (Bem ou Mal) e pode discutir sobre o que viu' },
-        { text: 'O jogador examinado recebe o token da Dama do Lago' }
+        { text: t('guide.step_lady_a1') },
+        { text: t('guide.step_lady_a2') },
+        { text: t('guide.step_lady_a3') },
+        { text: t('guide.step_lady_a4') },
+        { text: t('guide.step_lady_a5') }
       ],
-      note: 'Passar a carta errada resulta em perda automática. Não é permitido blefar!\nUm jogador que já usou a Dama do Lago não pode ser examinado'
+      note: t('guide.step_lady_note')
     });
   }
 
   // ETAPA 10 — Próxima Rodada
   steps.push({
     type: 'mission',
-    badges: ['Missão'],
-    title: '⏭️ Próxima Rodada',
+    badges: [t('guide.step_next_badge')],
+    title: t('guide.step_next_title'),
     actions: [
-      { text: 'Passe a liderança para o próximo jogador (sentido horário)' },
-      { text: 'Continue até que um lado vença (3 sucessos ou 3 falhas)' }
+      { text: t('guide.step_next_a1') },
+      { text: t('guide.step_next_a2') }
     ]
   });
 
   // ETAPA 11 — Tentativa de Assassinato
   steps.push({
     type: 'assassination',
-    badges: ['Assassinato'],
-    title: '💀 Tentativa de Assassinato',
+    badges: [t('guide.step_assassination_badge')],
+    title: t('guide.step_assassination_title'),
     actions: [
-      { text: 'Se o Bem conquistar Sucesso em 3 missões, o jogo NÃO termina imediatamente' },
-      { text: 'Os jogadores do MAL discutem entre si (sem revelar cartas)' },
-      { 
-        text: 'O Assassino aponta para um jogador do BEM',
+      { text: t('guide.step_assassination_a1') },
+      { text: t('guide.step_assassination_a2') },
+      {
+        text: t('guide.step_assassination_a3'),
         subactions: [
-          'Se for Merlin: MAL VENCE!',
-          'Se NÃO for Merlin: BEM VENCE!'
+          t('guide.step_assassination_a3_sub1'),
+          t('guide.step_assassination_a3_sub2')
         ]
       }
     ],
-    note: 'Esta é a última chance do Mal! Merlin precisa ser sutil para o BEM vencer o jogo.'
+    note: t('guide.step_assassination_note')
   });
 
   return steps;
@@ -243,23 +247,23 @@ const StepCard = ({ step, index, total }: { step: GameStep; index: number; total
   const colors = typeColors[step.type];
 
   return (
-    <motion.div 
+    <motion.div
       key={index}
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
       transition={{ duration: 0.3 }}
       className="game-step w-full p-4 rounded-xl border-l-4 bg-white/5 shadow-lg flex flex-col gap-4 relative overflow-hidden group transition-all duration-300 hover:translate-x-1 hover:shadow-[0_4px_12px_rgba(255,215,0,0.2)]"
-      style={{ 
+      style={{
         borderLeftColor: colors.border,
         background: step.type === 'optional' ? 'linear-gradient(145deg, rgba(0,195,255,0.05), rgba(0,195,255,0.02))' : undefined
       }}
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <div 
+          <div
             className="flex items-center justify-center rounded-full font-bold text-lg shadow-inner min-w-[40px] h-[40px]"
-            style={{ 
+            style={{
               background: 'linear-gradient(145deg, #ffd700, #b8860b)',
               color: '#1a0a2e',
               fontFamily: '"Cinzel", serif'
@@ -273,10 +277,10 @@ const StepCard = ({ step, index, total }: { step: GameStep; index: number; total
         </div>
         <div className="flex gap-1 flex-wrap justify-end">
           {step.badges.map(badge => (
-            <span 
+            <span
               key={badge}
               className="text-[10px] uppercase font-bold px-2 py-0.5 rounded border"
-              style={{ 
+              style={{
                 color: colors.badgeText,
                 backgroundColor: colors.badgeBg,
                 borderColor: colors.badgeBorder
@@ -319,9 +323,9 @@ const StepCard = ({ step, index, total }: { step: GameStep; index: number; total
         )}
 
         {step.note && (
-          <div 
+          <div
             className="p-3 rounded-md border-l-4 italic flex gap-3 items-start"
-            style={{ 
+            style={{
               borderLeftColor: colors.border,
               backgroundColor: `rgba(${parseInt(colors.border.slice(1,3), 16)}, ${parseInt(colors.border.slice(3,5), 16)}, ${parseInt(colors.border.slice(5,7), 16)}, 0.1)`
             }}
@@ -338,91 +342,92 @@ const StepCard = ({ step, index, total }: { step: GameStep; index: number; total
 };
 
 const VictoryConditions = () => {
+  const { t } = useTranslation();
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* BEM */}
-      <div 
+      {/* GOOD */}
+      <div
         className="victory-group p-5 rounded-2xl border-2 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_5px_15px_rgba(0,0,0,0.3)]"
-        style={{ 
+        style={{
           borderColor: '#4169e1',
           backgroundColor: 'rgba(65,105,225,0.15)'
         }}
       >
         <h3 className="text-xl font-bold mb-6 text-[#82a1fd] font-['Cinzel'] flex items-center gap-2">
-          <Shield size={24} /> BEM Vence Se...
+          <Shield size={24} /> {t('guide.goodWinsIf')}
         </h3>
-        
+
         <div className="space-y-6">
           <div className="victory-condition flex gap-4 p-2 rounded-lg transition-all duration-300 hover:bg-white/5 hover:translate-x-1">
             <span className="text-3xl">😄</span>
             <div>
-              <p className="font-bold text-[#e0e0e0]">3 missões bem-sucedidas</p>
-              <p className="text-xs text-[#b0b0b0]">Complete três missões com sucesso</p>
+              <p className="font-bold text-[#e0e0e0]">{t('guide.good_condition1')}</p>
+              <p className="text-xs text-[#b0b0b0]">{t('guide.good_condition1_sub')}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
             <div className="h-[1px] flex-1 bg-[#4169e1]/30" />
-            <span className="font-['Cinzel'] text-[#4169e1] text-sm font-bold">E</span>
+            <span className="font-['Cinzel'] text-[#4169e1] text-sm font-bold">{t('guide.good_and')}</span>
             <div className="h-[1px] flex-1 bg-[#4169e1]/30" />
           </div>
 
           <div className="victory-condition flex gap-4 p-2 rounded-lg transition-all duration-300 hover:bg-white/5 hover:translate-x-1">
             <span className="text-3xl">🧙🏻‍♂️</span>
             <div>
-              <p className="font-bold text-[#e0e0e0]">Merlin sobrevive</p>
-              <p className="text-xs text-[#b0b0b0]">O Assassino erra ao tentar matá-lo</p>
+              <p className="font-bold text-[#e0e0e0]">{t('guide.good_condition2')}</p>
+              <p className="text-xs text-[#b0b0b0]">{t('guide.good_condition2_sub')}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* MAL */}
-      <div 
+      {/* EVIL */}
+      <div
         className="victory-group p-5 rounded-2xl border-2 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_5px_15px_rgba(0,0,0,0.3)]"
-        style={{ 
+        style={{
           borderColor: '#dc143c',
           backgroundColor: 'rgba(220,20,60,0.15)'
         }}
       >
         <h3 className="text-xl font-bold mb-6 text-[#ff6282] font-['Cinzel'] flex items-center gap-2">
-          <Skull size={24} /> MAL Vence Se...
+          <Skull size={24} /> {t('guide.evilWinsIf')}
         </h3>
-        
+
         <div className="space-y-6">
           <div className="victory-condition flex gap-4 p-2 rounded-lg transition-all duration-300 hover:bg-white/5 hover:translate-x-1">
             <span className="text-3xl">😈</span>
             <div>
-              <p className="font-bold text-[#e0e0e0]">3 missões falharem</p>
-              <p className="text-xs text-[#b0b0b0]">Sabote três missões</p>
+              <p className="font-bold text-[#e0e0e0]">{t('guide.evil_condition1')}</p>
+              <p className="text-xs text-[#b0b0b0]">{t('guide.evil_condition1_sub')}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
             <div className="h-[1px] flex-1 bg-[#dc143c]/30" />
-            <span className="font-['Cinzel'] text-[#dc143c] text-sm font-bold">OU</span>
+            <span className="font-['Cinzel'] text-[#dc143c] text-sm font-bold">{t('guide.evil_or')}</span>
             <div className="h-[1px] flex-1 bg-[#dc143c]/30" />
           </div>
 
           <div className="victory-condition flex gap-4 p-2 rounded-lg transition-all duration-300 hover:bg-white/5 hover:translate-x-1">
             <span className="text-3xl">🤯</span>
             <div>
-              <p className="font-bold text-[#e0e0e0]">5 times rejeitados</p>
-              <p className="text-xs text-[#b0b0b0]">Gere confusão o suficiente para não confiarem em ninguém</p>
+              <p className="font-bold text-[#e0e0e0]">{t('guide.evil_condition2')}</p>
+              <p className="text-xs text-[#b0b0b0]">{t('guide.evil_condition2_sub')}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
             <div className="h-[1px] flex-1 bg-[#dc143c]/30" />
-            <span className="font-['Cinzel'] text-[#dc143c] text-sm font-bold">OU</span>
+            <span className="font-['Cinzel'] text-[#dc143c] text-sm font-bold">{t('guide.evil_or')}</span>
             <div className="h-[1px] flex-1 bg-[#dc143c]/30" />
           </div>
 
           <div className="victory-condition flex gap-4 p-2 rounded-lg transition-all duration-300 hover:bg-white/5 hover:translate-x-1">
             <span className="text-3xl">💀</span>
             <div>
-              <p className="font-bold text-[#e0e0e0]">Assassinar Merlin</p>
-              <p className="text-xs text-[#b0b0b0]">Identifique quem conhece o mal e mate Merlin</p>
+              <p className="font-bold text-[#e0e0e0]">{t('guide.evil_condition3')}</p>
+              <p className="text-xs text-[#b0b0b0]">{t('guide.evil_condition3_sub')}</p>
             </div>
           </div>
         </div>
@@ -432,6 +437,7 @@ const VictoryConditions = () => {
 };
 
 export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  const { t } = useTranslation();
   const [lancelots, setLancelots] = useState(false);
   const [lancelotVariants, setLancelotVariants] = useState<string[]>([]);
   const [excalibur, setExcalibur] = useState(false);
@@ -445,7 +451,7 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
         return prev.filter(v => v !== variant);
       }
       if (prev.length >= 2) return prev;
-      
+
       // Validation logic for combinations
       const next = [...prev, variant];
       const hasVar1 = next.includes('var1');
@@ -459,15 +465,16 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
 
   const getLancelotConfig = (): LancelotConfig | null => {
     if (!lancelots || lancelotVariants.length === 0) return null;
-    
+
     const variant = lancelotVariants.sort().join('_');
     const hasSwitches = lancelotVariants.some(v => v === 'var1' || v === 'var2');
     const recognition = lancelotVariants.includes('var3');
-    
+
     return { variant, recognition, hasSwitches };
   };
 
   const steps = generateGameSteps(
+    t as TFunction,
     lancelots && lancelotVariants.length > 0,
     getLancelotConfig(),
     excalibur,
@@ -484,7 +491,7 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -493,9 +500,9 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
           {/* Header */}
           <div className="p-4 border-b border-[#4a5f7f] flex items-center justify-between bg-white/5">
             <h2 className="text-xl font-bold text-[#ffd700] font-['Cinzel'] flex items-center gap-2">
-              <MapPinned size={24} /> Guia de Jogo
+              <MapPinned size={24} /> {t('guide.title')}
             </h2>
-            <button 
+            <button
               onClick={onClose}
               className="p-2 hover:bg-white/10 rounded-full transition-colors text-[#ffd700]"
             >
@@ -505,16 +512,16 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-10 custom-scrollbar">
-            
+
             {/* Toggles Section */}
             <section className="space-y-4">
               <h3 className="text-xs uppercase tracking-widest text-[#b8956a] font-bold border-b border-[#4a5f7f] pb-2">
-                Regras Opcionais (Visualização)
+                {t('guide.optionalRules')}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Lancelots */}
                 <div className="space-y-3">
-                  <button 
+                  <button
                     onClick={() => setLancelots(!lancelots)}
                     className={`w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 h-fit ${
                       lancelots ? 'border-[#ffd700] bg-[#ffd700]/10' : 'border-white/5 bg-[#1b263b] opacity-60'
@@ -524,34 +531,35 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                       <RefreshCw size={24} />
                     </div>
                     <div className="text-left flex-1">
-                      <span className="font-['Cinzel'] font-bold text-sm block">Lancelots</span>
-                      <p className="text-[10px] text-gray-400">Adiciona os cavaleiros Lancelot (Bom e Mau).</p>
+                      <span className="font-['Cinzel'] font-bold text-sm block">{t('guide.lancelots_label')}</span>
+                      <p className="text-[10px] text-gray-400">{t('guide.lancelots_desc')}</p>
                     </div>
                     {lancelots && <CheckCircle2 size={16} className="text-[#ffd700]" />}
                   </button>
-                  
+
                   <AnimatePresence>
                     {lancelots && (
-                      <motion.div 
+                      <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                         className="pl-2 space-y-2 overflow-hidden"
                       >
                         <div className="grid grid-cols-1 gap-2">
-                          {['var1', 'var2', 'var3'].map((v, i) => {
+                          {(['var1', 'var2', 'var3'] as const).map((v, i) => {
                             const isSelected = lancelotVariants.includes(v);
                             const isMaxed = lancelotVariants.length >= 2 && !isSelected;
+                            const varName = v === 'var1' ? t('guide.var1_name') : v === 'var2' ? t('guide.var2_name') : t('guide.var3_name');
                             return (
-                              <button 
+                              <button
                                 key={v}
                                 onClick={() => toggleLancelotVariant(v)}
                                 disabled={isMaxed}
                                 className={`w-full p-2 rounded-lg border transition-all flex items-center gap-3 text-left ${
-                                  isSelected 
-                                    ? 'border-[#ffd700] bg-[#ffd700]/10 text-[#ffd700]' 
-                                    : isMaxed 
-                                      ? 'border-white/5 bg-white/5 opacity-20 cursor-not-allowed' 
+                                  isSelected
+                                    ? 'border-[#ffd700] bg-[#ffd700]/10 text-[#ffd700]'
+                                    : isMaxed
+                                      ? 'border-white/5 bg-white/5 opacity-20 cursor-not-allowed'
                                       : 'border-white/10 bg-white/5 text-[#b0b0b0] hover:bg-white/10'
                                 }`}
                               >
@@ -559,10 +567,8 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                                   {isSelected && <Check size={12} className="text-[#0d1b2a]" />}
                                 </div>
                                 <div className="flex-1">
-                                  <span className="text-[10px] font-bold block">Variante {i + 1}</span>
-                                  <span className="text-[9px] opacity-70">
-                                    {v === 'var1' ? 'Trocas Ocultas' : v === 'var2' ? 'Trocas Predeterminadas' : 'Reconhecimento Mútuo'}
-                                  </span>
+                                  <span className="text-[10px] font-bold block">{t('guide.variant', { n: i + 1 })}</span>
+                                  <span className="text-[9px] opacity-70">{varName}</span>
                                 </div>
                               </button>
                             );
@@ -570,7 +576,7 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                         </div>
                         {lancelotVariants.length === 0 && (
                           <p className="text-[10px] text-[#dc143c] italic mt-1">
-                            Selecione ao menos uma variante.
+                            {t('guide.selectVariant')}
                           </p>
                         )}
                       </motion.div>
@@ -579,7 +585,7 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                 </div>
 
                 {/* Excalibur */}
-                <button 
+                <button
                   onClick={() => setExcalibur(!excalibur)}
                   className={`w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 h-fit ${
                     excalibur ? 'border-[#ffd700] bg-[#ffd700]/10' : 'border-white/5 bg-[#1b263b] opacity-60'
@@ -589,14 +595,14 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                     <Sword size={24} />
                   </div>
                   <div className="text-left flex-1">
-                    <span className="font-['Cinzel'] font-bold text-sm block">Excalibur</span>
-                    <p className="text-[10px] text-gray-400">Permite forçar a troca de uma carta de missão.</p>
+                    <span className="font-['Cinzel'] font-bold text-sm block">{t('guide.excalibur_label')}</span>
+                    <p className="text-[10px] text-gray-400">{t('guide.excalibur_desc')}</p>
                   </div>
                   {excalibur && <CheckCircle2 size={16} className="text-[#ffd700]" />}
                 </button>
 
                 {/* Missão Alvo */}
-                <button 
+                <button
                   onClick={() => setTargeting(!targeting)}
                   className={`w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 h-fit ${
                     targeting ? 'border-[#ffd700] bg-[#ffd700]/10' : 'border-white/5 bg-[#1b263b] opacity-60'
@@ -606,14 +612,14 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                     <Target size={24} />
                   </div>
                   <div className="text-left flex-1">
-                    <span className="font-['Cinzel'] font-bold text-sm block">Missão Alvo</span>
-                    <p className="text-[10px] text-gray-400">Permite escolher a ordem das missões.</p>
+                    <span className="font-['Cinzel'] font-bold text-sm block">{t('guide.targeting_label')}</span>
+                    <p className="text-[10px] text-gray-400">{t('guide.targeting_desc')}</p>
                   </div>
                   {targeting && <CheckCircle2 size={16} className="text-[#ffd700]" />}
                 </button>
 
                 {/* Dama do Lago */}
-                <button 
+                <button
                   onClick={() => setLadyOfLake(!ladyOfLake)}
                   className={`w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 h-fit ${
                     ladyOfLake ? 'border-[#ffd700] bg-[#ffd700]/10' : 'border-white/5 bg-[#1b263b] opacity-60'
@@ -623,8 +629,8 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                     <Droplets size={24} />
                   </div>
                   <div className="text-left flex-1">
-                    <span className="font-['Cinzel'] font-bold text-sm block">Dama do Lago</span>
-                    <p className="text-[10px] text-gray-400">Permite investigar a lealdade de outros jogadores.</p>
+                    <span className="font-['Cinzel'] font-bold text-sm block">{t('guide.ladyoflake_label')}</span>
+                    <p className="text-[10px] text-gray-400">{t('guide.ladyoflake_desc')}</p>
                   </div>
                   {ladyOfLake && <CheckCircle2 size={16} className="text-[#ffd700]" />}
                 </button>
@@ -635,21 +641,21 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
             <section className="space-y-6">
               <div className="flex items-center justify-between border-b border-[#4a5f7f] pb-2">
                 <h3 className="text-xs uppercase tracking-widest text-[#b8956a] font-bold">
-                  📋 Etapas do Jogo
+                  {t('guide.gameSteps')}
                 </h3>
                 <div className="flex items-center gap-4">
                   <span className="text-xs text-[#b0b0b0] font-bold">
-                    Etapa {currentStep + 1} de {steps.length}
+                    {t('guide.stepCounter', { current: currentStep + 1, total: steps.length })}
                   </span>
                   <div className="flex gap-2">
-                    <button 
+                    <button
                       disabled={currentStep === 0}
                       onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
                       className="p-1 rounded bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-colors text-[#ffd700]"
                     >
                       <ChevronLeft size={20} />
                     </button>
-                    <button 
+                    <button
                       disabled={currentStep === steps.length - 1}
                       onClick={() => setCurrentStep(prev => Math.min(steps.length - 1, prev + 1))}
                       className="p-1 rounded bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-colors text-[#ffd700]"
@@ -662,11 +668,11 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
 
               <div className="min-h-[300px] flex items-start justify-center">
                 <AnimatePresence mode="wait">
-                  <StepCard 
+                  <StepCard
                     key={currentStep}
-                    step={steps[currentStep]} 
-                    index={currentStep} 
-                    total={steps.length} 
+                    step={steps[currentStep]}
+                    index={currentStep}
+                    total={steps.length}
                   />
                 </AnimatePresence>
               </div>
@@ -675,7 +681,7 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
             {/* Victory Conditions Section */}
             <section className="space-y-6">
               <h3 className="text-xs uppercase tracking-widest text-[#b8956a] font-bold border-b border-[#4a5f7f] pb-2">
-                Condições de Vitória
+                {t('guide.victoryConditions')}
               </h3>
               <VictoryConditions />
             </section>
