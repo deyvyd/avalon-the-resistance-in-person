@@ -13,7 +13,6 @@ Idioma detectado automaticamente pelo subdomínio (`games.*` → EN, qualquer ou
 - Tailwind CSS 4
 - Socket.io (WebSocket para sync de sala em tempo real)
 - react-i18next + i18next (internacionalização)
-- Gemini API (narração gerada por IA)
 - Render (hospedagem)
 
 ## Rodar localmente
@@ -22,12 +21,6 @@ Idioma detectado automaticamente pelo subdomínio (`games.*` → EN, qualquer ou
 
 ```bash
 npm install
-```
-
-Crie `.env.local` com:
-
-```
-GEMINI_API_KEY=sua_chave_aqui
 ```
 
 ```bash
@@ -51,7 +44,6 @@ Build command: `npm install; npm run build`
 Start command: `npm run start`
 
 Variáveis de ambiente necessárias:
-- `GEMINI_API_KEY`
 - `NODE_ENV=production`
 - `PORT=3000` (opcional, padrão 3000)
 
