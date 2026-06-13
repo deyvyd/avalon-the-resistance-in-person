@@ -344,7 +344,7 @@ const SettingsModal = ({
   onSave: () => void;
   onClose: () => void;
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   return (
@@ -493,6 +493,29 @@ const SettingsModal = ({
                 </button>
               </div>
               <p className="text-[10px] text-[#9b7a4f] italic">{t('app.settings.confirmLeaveHint')}</p>
+            </div>
+
+            <div className="bg-[#1e2d45]/40 border border-[#ffd700]/10 rounded-lg p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="font-['Cinzel'] text-[#ffd700] flex items-center gap-2">
+                  {t('app.settings.language')}
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => i18n.changeLanguage('pt')}
+                    className={`px-3 py-1 rounded text-xs font-bold transition-all ${i18n.language === 'pt' ? 'bg-[#4169e1]/40 border border-[#4169e1] text-[#ffd700]' : 'bg-white/5 border border-white/10 text-gray-400 hover:border-white/30'}`}
+                  >
+                    🇧🇷 PT
+                  </button>
+                  <button
+                    onClick={() => i18n.changeLanguage('en')}
+                    className={`px-3 py-1 rounded text-xs font-bold transition-all ${i18n.language === 'en' ? 'bg-[#4169e1]/40 border border-[#4169e1] text-[#ffd700]' : 'bg-white/5 border border-white/10 text-gray-400 hover:border-white/30'}`}
+                  >
+                    🇺🇸 EN
+                  </button>
+                </div>
+              </div>
+              <p className="text-[10px] text-[#9b7a4f] italic">{t('app.settings.languageHint')}</p>
             </div>
           </section>
 

@@ -335,6 +335,8 @@
       "keepScreenHint": "Prevents the screen from turning off during narration and gameplay",
       "confirmLeave": "🚪 Confirm Room Exit",
       "confirmLeaveHint": "Ask for confirmation before leaving the room or ending the game",
+      "language": "🌐 Language",
+      "languageHint": "Changes the app interface language",
       "about": "ℹ️ About",
       "originalDesign": "Original design: Don Eskridge",
       "appVersion": "App version {{version}}",

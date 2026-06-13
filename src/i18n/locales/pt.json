@@ -335,6 +335,8 @@
       "keepScreenHint": "Evita que a tela apague durante a narração e o jogo",
       "confirmLeave": "🚪 Confirmar Saída da Sala",
       "confirmLeaveHint": "Pede confirmação antes de sair da sala ou encerrar o jogo",
+      "language": "🌐 Idioma",
+      "languageHint": "Altera o idioma da interface do aplicativo",
       "about": "ℹ️ Sobre",
       "originalDesign": "Design original: Don Eskridge",
       "appVersion": "App versão {{version}}",
