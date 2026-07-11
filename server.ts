@@ -206,7 +206,7 @@ io.on("connection", (socket) => {
     socketToPlayer.set(socket.id, { roomCode, playerId });
     socket.join(roomCode);
     socket.emit("room-created", { roomCode, playerId });
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("get-room-info", ({ roomCode, playerId }) => {
@@ -224,7 +224,7 @@ io.on("connection", (socket) => {
       socket.join(roomCode);
     }
     
-    socket.emit("room-updated", room);
+    socket.emit("room-updated", serializeRoomFor(room, player ? playerId : null));
   });
 
   socket.on("join-room", ({ roomCode, playerName, playerId }) => {
@@ -242,7 +242,7 @@ io.on("connection", (socket) => {
       socketToPlayer.set(socket.id, { roomCode, playerId });
       socket.join(roomCode);
       socket.emit("joined-room", { roomCode, playerId });
-      io.to(roomCode).emit("room-updated", room);
+      broadcastRoom(room);
       return;
     }
 
@@ -261,7 +261,7 @@ io.on("connection", (socket) => {
     socketToPlayer.set(socket.id, { roomCode, playerId });
     socket.join(roomCode);
     socket.emit("joined-room", { roomCode, playerId });
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("reorder-players", ({ roomCode, players }) => {
@@ -269,7 +269,7 @@ io.on("connection", (socket) => {
     const { playerId } = socketToPlayer.get(socket.id) || {};
     if (!room || playerId !== room.hostId || room.phase !== 'lobby') return;
     room.players = players;
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("set-first-leader", ({ roomCode, playerId: targetPlayerId }) => {
@@ -277,7 +277,7 @@ io.on("connection", (socket) => {
     const { playerId } = socketToPlayer.get(socket.id) || {};
     if (!room || playerId !== room.hostId || room.phase !== 'lobby') return;
     room.firstLeaderId = targetPlayerId;
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("start-game", ({ roomCode, selectedRoles, lancelotConfig, ladyOfLakeEnabled, excaliburEnabled, targetingEnabled }) => {
@@ -348,7 +348,7 @@ io.on("connection", (socket) => {
       room.currentLeaderIndex = Math.floor(Math.random() * playerCount);
     }
 
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("reset-game", ({ roomCode }) => {
@@ -393,7 +393,7 @@ io.on("connection", (socket) => {
     room.attemptedMissions = [];
     room.currentMatchStartedAt = null;
 
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("confirm-character", ({ roomCode }) => {
@@ -406,7 +406,7 @@ io.on("connection", (socket) => {
     if (room.players.every(p => p.isConfirmed)) {
       room.phase = 'narration';
     }
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("start-narration", ({ roomCode }) => {
@@ -434,7 +434,7 @@ io.on("connection", (socket) => {
     const { playerId } = socketToPlayer.get(socket.id) || {};
     if (!room || playerId !== room.hostId) return;
     room.phase = 'team-proposal';
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("propose-team", ({ roomCode, teamPlayerIds, targetMissionIndex }) => {
@@ -461,7 +461,7 @@ io.on("connection", (socket) => {
     room.proposedTeam = teamPlayerIds;
     room.phase = 'team-voting';
     room.teamVotes = {};
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("assign-excalibur", ({ roomCode, targetPlayerId }) => {
@@ -470,7 +470,7 @@ io.on("connection", (socket) => {
     if (!room || playerId !== room.players[room.currentLeaderIndex].id) return;
     
     room.excaliburHolder = targetPlayerId;
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("vote-team", ({ roomCode, vote }) => {
@@ -501,7 +501,7 @@ io.on("connection", (socket) => {
       }
     }
 
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("reveal-team-vote", ({ roomCode }) => {
@@ -528,7 +528,7 @@ io.on("connection", (socket) => {
       room.rejectionCount = 0;
     }
 
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("vote-mission", ({ roomCode, vote }) => {
@@ -575,7 +575,7 @@ io.on("connection", (socket) => {
       }
     }
 
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("use-excalibur", ({ roomCode, targetPlayerId }) => {
@@ -594,7 +594,7 @@ io.on("connection", (socket) => {
     room.missionVotes[targetPlayerId] = originalVote === 'success' ? 'fail' : 'success';
 
     processMissionResult(room, roomCode);
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("skip-excalibur", ({ roomCode }) => {
@@ -604,7 +604,7 @@ io.on("connection", (socket) => {
 
     room.excaliburUsed = true;
     processMissionResult(room, roomCode);
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("lady-examine", ({ roomCode, targetPlayerId }) => {
@@ -631,7 +631,7 @@ io.on("connection", (socket) => {
 
     advanceToNextMission(room);
 
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("reveal-mission", ({ roomCode }) => {
@@ -662,7 +662,7 @@ io.on("connection", (socket) => {
     };
     room.phase = 'mission-result';
 
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("continue-game", ({ roomCode }) => {
@@ -689,7 +689,7 @@ io.on("connection", (socket) => {
       }
     } else if (room.phase === 'mission-result') {
       if (checkGameOver(room)) {
-        io.to(roomCode).emit("room-updated", room);
+        broadcastRoom(room);
         return;
       }
 
@@ -711,7 +711,7 @@ io.on("connection", (socket) => {
       // No need to call handleLoyaltySwap(room, 0) here as it's now called in start-game
     }
 
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("assassinate", ({ roomCode, targetPlayerId }) => {
@@ -732,7 +732,7 @@ io.on("connection", (socket) => {
     }
     room.phase = 'game-over';
     saveMatchHistory(room);
-    io.to(roomCode).emit("room-updated", room);
+    broadcastRoom(room);
   });
 
   socket.on("leave-room", ({ roomCode, playerId }) => {
@@ -749,7 +749,7 @@ io.on("connection", (socket) => {
       if (room.hostId === playerId) {
         room.hostId = room.players[0].id;
       }
-      io.to(roomCode).emit("room-updated", room);
+      broadcastRoom(room);
     }
   });
 
@@ -774,7 +774,7 @@ io.on("connection", (socket) => {
       if (room.phase !== 'lobby') {
         const player = room.players.find(p => p.id === playerId);
         if (player) player.socketId = ""; // Show as offline
-        io.to(roomCode).emit("room-updated", room);
+        broadcastRoom(room);
       } else {
         // In lobby, remove the player entirely
         room.players = room.players.filter(p => p.id !== playerId);
@@ -784,7 +784,7 @@ io.on("connection", (socket) => {
           if (room.hostId === playerId) {
             room.hostId = room.players[0].id;
           }
-          io.to(roomCode).emit("room-updated", room);
+          broadcastRoom(room);
         }
       }
     } else {
@@ -792,7 +792,7 @@ io.on("connection", (socket) => {
       const player = room.players.find(p => p.id === playerId);
       if (player && player.socketId === socket.id) {
         player.socketId = otherSocketsForPlayer[0][0]; // Switch to another active socket
-        io.to(roomCode).emit("room-updated", room);
+        broadcastRoom(room);
       }
     }
     
@@ -831,6 +831,83 @@ const ROLES: Record<string, { team: 'good' | 'evil' }> = {
   lancelot_good: { team: 'good' },
   lancelot_evil: { team: 'evil' },
 };
+
+interface KnowledgeItem {
+  playerId: string;
+  hint: 'evil' | 'maybe-merlin' | 'lancelot';
+  team?: 'good' | 'evil';
+}
+
+// Espelha as regras de conhecimento do jogo (antes computadas no cliente em KnowledgeSection)
+function computeKnowledge(room: Room, viewer: Player): KnowledgeItem[] {
+  const items: KnowledgeItem[] = [];
+  const role = viewer.role;
+  if (!role || !ROLES[role]) return items;
+
+  // Lancelots com var3 (recognition): reconhecem-se
+  if (room.lancelotConfig?.variant?.includes('var3') && (role === 'lancelot_good' || role === 'lancelot_evil')) {
+    const other = room.players.find(p => p.id !== viewer.id && (p.role === 'lancelot_good' || p.role === 'lancelot_evil'));
+    if (other) items.push({ playerId: other.id, hint: 'lancelot', team: ROLES[other.role!].team });
+  }
+
+  // Malvados (exceto Oberon e Lancelot Mau) veem os outros malvados (exceto Oberon)
+  if (ROLES[role].team === 'evil' && role !== 'oberon' && role !== 'lancelot_evil') {
+    room.players
+      .filter(p => p.id !== viewer.id && p.role && ROLES[p.role].team === 'evil' && p.role !== 'oberon')
+      .forEach(p => items.push({ playerId: p.id, hint: 'evil', team: 'evil' }));
+  }
+
+  // Merlin vê todos os malvados exceto Mordred
+  if (role === 'merlin') {
+    room.players
+      .filter(p => p.id !== viewer.id && p.role && ROLES[p.role].team === 'evil' && p.role !== 'mordred')
+      .forEach(p => items.push({ playerId: p.id, hint: 'evil', team: 'evil' }));
+  }
+
+  // Percival vê Merlin e Morgana sem distinguir
+  if (role === 'percival') {
+    room.players
+      .filter(p => p.role === 'merlin' || p.role === 'morgana')
+      .forEach(p => items.push({ playerId: p.id, hint: 'maybe-merlin' }));
+  }
+
+  return items;
+}
+
+function serializeRoomFor(room: Room, viewerId: string | null) {
+  const revealRoles = room.phase === 'game-over';
+  const viewer = viewerId ? room.players.find(p => p.id === viewerId) : undefined;
+  const view: any = {
+    ...room,
+    players: room.players.map(p => ({
+      id: p.id,
+      socketId: p.socketId ? 'online' : '', // cliente só usa truthiness (indicador offline)
+      name: p.name,
+      isConfirmed: p.isConfirmed,
+      role: revealRoles || p.id === viewerId ? p.role : undefined,
+    })),
+    // Mascara cartas de lealdade ainda não reveladas (defesa em profundidade)
+    loyaltyDeckVisible: room.loyaltyDeckVisible.map((c, i) =>
+      room.lancelotConfig?.deckRevealed || i < room.loyaltyDeckIndex ? c : 'hidden'),
+    teamVotesCount: Object.keys(room.teamVotes).length,
+    missionVotesCount: Object.keys(room.missionVotes).length,
+    hasVotedTeam: viewerId ? room.teamVotes[viewerId] !== undefined : false,
+    hasVotedMission: viewerId ? room.missionVotes[viewerId] !== undefined : false,
+    knowledge: viewer ? computeKnowledge(room, viewer) : [],
+  };
+  delete view.teamVotes;
+  delete view.missionVotes;
+  delete view.loyaltyDeck;
+  return view;
+}
+
+function broadcastRoom(room: Room) {
+  for (const p of room.players) {
+    if (p.socketId) {
+      io.to(p.socketId).emit('room-updated', serializeRoomFor(room, p.id));
+    }
+  }
+}
 
 function processMissionResult(room: Room, roomCode: string) {
   const votes = Object.values(room.missionVotes);

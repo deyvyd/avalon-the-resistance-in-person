@@ -22,7 +22,7 @@ describe('fluxo básico', () => {
   it('distribui papéis corretos para 5 jogadores (3 bem, 2 mal)', async () => {
     h = await Harness.create(5);
     await h.startGame();
-    const roles = h.room.players.map((p: any) => p.role).sort();
+    const roles = h.clients.map(c => h.roleOf(c)).sort();
     expect(roles).toEqual(['assassin', 'merlin', 'minion', 'servant', 'servant']);
   });
 
@@ -35,8 +35,8 @@ describe('fluxo básico', () => {
     expect(h.room.phase).toBe('assassination');
 
     const assassin = h.withRole('assassin');
-    const servant = h.room.players.find((p: any) => p.role === 'servant');
-    assassin.socket.emit('assassinate', { roomCode: h.code, targetPlayerId: servant.id });
+    const servant = h.withRole('servant');
+    assassin.socket.emit('assassinate', { roomCode: h.code, targetPlayerId: servant.playerId });
     await h.waitPhase('game-over');
     expect(h.room.winner).toBe('good');
   });
@@ -48,8 +48,8 @@ describe('fluxo básico', () => {
     await h.playMission();
     await h.playMission();
     const assassin = h.withRole('assassin');
-    const merlin = h.room.players.find((p: any) => p.role === 'merlin');
-    assassin.socket.emit('assassinate', { roomCode: h.code, targetPlayerId: merlin.id });
+    const merlin = h.withRole('merlin');
+    assassin.socket.emit('assassinate', { roomCode: h.code, targetPlayerId: merlin.playerId });
     await h.waitPhase('game-over');
     expect(h.room.winner).toBe('evil');
   });
@@ -133,7 +133,7 @@ describe('autorização e validação (fix 4)', () => {
     await h.startGame();
     h.clients[1].socket.emit('vote-team', { roomCode: h.code, vote: 'approve' });
     await new Promise(r => setTimeout(r, 300));
-    expect(Object.keys(h.room.teamVotes)).toHaveLength(0);
+    expect(h.room.teamVotesCount).toBe(0);
   });
 
   it('re-voto após team-result não incrementa rejectionCount de novo', async () => {
@@ -158,7 +158,7 @@ describe('autorização e validação (fix 4)', () => {
     const outsider = h.clients.find(c => !team.includes(c.playerId))!;
     outsider.socket.emit('vote-mission', { roomCode: h.code, vote: 'fail' });
     await new Promise(r => setTimeout(r, 300));
-    expect(Object.keys(h.room.missionVotes)).toHaveLength(0);
+    expect(h.room.missionVotesCount).toBe(0);
     expect(h.room.phase).toBe('mission-voting');
   });
 
@@ -170,7 +170,7 @@ describe('autorização e validação (fix 4)', () => {
     const good = h.byId(team[0]);
     good.socket.emit('vote-mission', { roomCode: h.code, vote: 'fail' });
     await h.waitFor(() => good.lastError !== null, 'erro do servidor');
-    expect(Object.keys(h.room.missionVotes)).toHaveLength(0);
+    expect(h.room.missionVotesCount).toBe(0);
   });
 
   it('não-assassino não consegue assassinar', async () => {
@@ -216,8 +216,8 @@ describe('Lady of the Lake (fix 2)', () => {
     await h.waitPhase('team-proposal');
 
     expect(h.room.currentMissionIndex).toBe(2);
-    expect(Object.keys(h.room.missionVotes)).toHaveLength(0);
-    expect(Object.keys(h.room.teamVotes)).toHaveLength(0);
+    expect(h.room.missionVotesCount).toBe(0);
+    expect(h.room.teamVotesCount).toBe(0);
     expect(h.room.proposedTeam).toHaveLength(0);
     expect(h.room.rejectionCount).toBe(0);
     expect(holder.ladyResults).toHaveLength(1);
