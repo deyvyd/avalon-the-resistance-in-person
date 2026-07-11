@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, afterAll } from 'vitest';
-import { Harness, closeServer } from './harness.ts';
+import { io as ioClient } from 'socket.io-client';
+import { Harness, closeServer, ensureServer } from './harness.ts';
 
 let h: Harness;
 
@@ -155,6 +156,34 @@ describe('sessionToken contra spoof de identidade', () => {
     a.socket.emit('join-room', { roomCode: h.code, playerName: a.name, playerId: a.playerId, sessionToken: a.sessionToken });
     await h.waitFor(() => h.room.players.length === 5 && a.roomSeq > 0, 'reconexão legítima');
     expect(h.room.players.length).toBe(5);
+  });
+
+  it('leave-room com playerId alheio de socket sem identidade não remove ninguém', async () => {
+    h = await Harness.create(5);
+    await h.startGame();
+    const a = h.clients[0];
+    const countBefore = h.room.players.length;
+
+    // Socket "atacante" que nunca fez create-room/join-room nesta sala:
+    // não tem mapeamento em socketToPlayer, logo não deve conseguir agir em nome de ninguém.
+    const url = await ensureServer();
+    const attacker = ioClient(url, { path: '/avalon/socket.io', transports: ['websocket'] });
+    await new Promise<void>(resolve => attacker.on('connect', () => resolve()));
+
+    attacker.emit('leave-room', { roomCode: h.code, playerId: a.playerId });
+    // sem evento para aguardar (não deve haver broadcast); dá tempo do servidor processar
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    expect(h.room.players.length).toBe(countBefore);
+    expect(h.room.players.some((p: any) => p.id === a.playerId)).toBe(true);
+
+    // A continua funcional: ainda recebe broadcasts subsequentes normalmente
+    const seqBefore = a.roomSeq;
+    h.leader().socket.emit('propose-team', { roomCode: h.code, teamPlayerIds: h.currentTeam(0) });
+    await h.waitFor(() => a.roomSeq > seqBefore, 'A recebe update após tentativa de leave-room spoofada');
+    expect(a.room.players.some((p: any) => p.id === a.playerId)).toBe(true);
+
+    attacker.disconnect();
   });
 
   it('payloads da sala nunca contêm sessionToken', async () => {

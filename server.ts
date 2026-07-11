@@ -744,9 +744,10 @@ io.on("connection", (socket) => {
     broadcastRoom(room);
   });
 
-  socket.on("leave-room", ({ roomCode, playerId }) => {
+  socket.on("leave-room", ({ roomCode }) => {
     const room = rooms.get(roomCode);
-    if (!room) return;
+    const { playerId } = socketToPlayer.get(socket.id) || {};
+    if (!room || !playerId) return;
 
     room.players = room.players.filter(p => p.id !== playerId);
     socket.leave(roomCode);
