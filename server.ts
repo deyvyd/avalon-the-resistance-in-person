@@ -28,6 +28,7 @@ const PORT = parseInt(process.env.PORT ?? '3000', 10);
 
 interface Player {
   id: string; // Persistent ID
+  sessionToken: string; // Secret per-player token — NEVER serialized to clients other than the owner
   socketId: string;
   name: string;
   role?: string;
@@ -169,10 +170,11 @@ io.on("connection", (socket) => {
 
   socket.on("create-room", ({ playerName, playerId }) => {
     const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const sessionToken = crypto.randomUUID();
     const room: Room = {
       code: roomCode,
       hostId: playerId,
-      players: [{ id: playerId, socketId: socket.id, name: playerName, isConfirmed: false }],
+      players: [{ id: playerId, sessionToken, socketId: socket.id, name: playerName, isConfirmed: false }],
       phase: 'lobby',
       selectedRoles: [],
       missions: [],
@@ -205,29 +207,30 @@ io.on("connection", (socket) => {
     rooms.set(roomCode, room);
     socketToPlayer.set(socket.id, { roomCode, playerId });
     socket.join(roomCode);
-    socket.emit("room-created", { roomCode, playerId });
+    socket.emit("room-created", { roomCode, playerId, sessionToken });
     broadcastRoom(room);
   });
 
-  socket.on("get-room-info", ({ roomCode, playerId }) => {
+  socket.on("get-room-info", ({ roomCode, playerId, sessionToken }) => {
     const room = rooms.get(roomCode);
     if (!room) {
       socket.emit("error", { message: "Sala não encontrada" });
       return;
     }
-    
-    // Update socket ID if player is already in the room
+
+    // Só trata o solicitante como o jogador se o token de sessão conferir
     const player = room.players.find(p => p.id === playerId);
-    if (player) {
+    const authenticated = !!player && !!sessionToken && player.sessionToken === sessionToken;
+    if (player && authenticated) {
       player.socketId = socket.id;
       socketToPlayer.set(socket.id, { roomCode, playerId });
       socket.join(roomCode);
     }
-    
-    socket.emit("room-updated", serializeRoomFor(room, player ? playerId : null));
+
+    socket.emit("room-updated", serializeRoomFor(room, authenticated ? playerId : null));
   });
 
-  socket.on("join-room", ({ roomCode, playerName, playerId }) => {
+  socket.on("join-room", ({ roomCode, playerName, playerId, sessionToken }) => {
     const room = rooms.get(roomCode);
     if (!room) {
       socket.emit("error", { message: "Sala não encontrada" });
@@ -236,12 +239,17 @@ io.on("connection", (socket) => {
 
     const existingPlayer = room.players.find(p => p.id === playerId);
     if (existingPlayer) {
+      // Reconexão exige token de sessão válido — impede spoof de identidade via playerId público
+      if (!sessionToken || existingPlayer.sessionToken !== sessionToken) {
+        socket.emit("error", { message: "Identidade inválida para reconexão" });
+        return;
+      }
       console.log(`Player ${playerId} rejoining room ${roomCode}. Previous name: ${existingPlayer.name}, New name: ${playerName}`);
       existingPlayer.socketId = socket.id;
       existingPlayer.name = playerName; // Update name if changed
       socketToPlayer.set(socket.id, { roomCode, playerId });
       socket.join(roomCode);
-      socket.emit("joined-room", { roomCode, playerId });
+      socket.emit("joined-room", { roomCode, playerId, sessionToken: existingPlayer.sessionToken });
       broadcastRoom(room);
       return;
     }
@@ -257,10 +265,11 @@ io.on("connection", (socket) => {
       return;
     }
 
-    room.players.push({ id: playerId, socketId: socket.id, name: playerName, isConfirmed: false });
+    const newSessionToken = crypto.randomUUID();
+    room.players.push({ id: playerId, sessionToken: newSessionToken, socketId: socket.id, name: playerName, isConfirmed: false });
     socketToPlayer.set(socket.id, { roomCode, playerId });
     socket.join(roomCode);
-    socket.emit("joined-room", { roomCode, playerId });
+    socket.emit("joined-room", { roomCode, playerId, sessionToken: newSessionToken });
     broadcastRoom(room);
   });
 

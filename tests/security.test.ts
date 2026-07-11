@@ -93,3 +93,78 @@ describe('sanitização de estado por jogador', () => {
     expect(servant.room.knowledge).toEqual([]);
   });
 });
+
+describe('sessionToken contra spoof de identidade', () => {
+  it('get-room-info com playerId alheio e sem token serve visão de espectador e não sequestra o socket', async () => {
+    h = await Harness.create(5);
+    await h.startGame();
+    const a = h.clients[0];
+    const b = h.clients[1];
+
+    const seqBefore = b.roomSeq;
+    b.socket.emit('get-room-info', { roomCode: h.code, playerId: a.playerId });
+    await h.waitFor(() => b.roomSeq > seqBefore, 'resposta do get-room-info spoofado');
+
+    // Visão de espectador: nenhum papel visível, nenhum conhecimento
+    expect(b.room.players.every((p: any) => p.role === undefined)).toBe(true);
+    expect(b.room.knowledge).toEqual([]);
+
+    // Binding de A intacto: A continua recebendo broadcasts
+    h.leader().socket.emit('propose-team', { roomCode: h.code, teamPlayerIds: h.currentTeam(0) });
+    await h.waitFor(() => a.room.phase === 'team-voting', 'A recebe update após spoof');
+  });
+
+  it('get-room-info com token errado não entrega o papel do dono do id', async () => {
+    h = await Harness.create(5);
+    await h.startGame();
+    const a = h.clients[0];
+    const b = h.clients[1];
+
+    const seqBefore = b.roomSeq;
+    b.socket.emit('get-room-info', { roomCode: h.code, playerId: a.playerId, sessionToken: 'token-falso' });
+    await h.waitFor(() => b.roomSeq > seqBefore, 'resposta do get-room-info com token errado');
+    expect(b.room.players.find((p: any) => p.id === a.playerId).role).toBeUndefined();
+  });
+
+  it('get-room-info com token correto entrega a própria visão (reconexão legítima)', async () => {
+    h = await Harness.create(5);
+    await h.startGame();
+    const a = h.clients[0];
+    const seqBefore = a.roomSeq;
+    a.socket.emit('get-room-info', { roomCode: h.code, playerId: a.playerId, sessionToken: a.sessionToken });
+    await h.waitFor(() => a.roomSeq > seqBefore, 'resposta do get-room-info legítimo');
+    expect(a.room.players.find((p: any) => p.id === a.playerId).role).toBeTruthy();
+  });
+
+  it('join-room com playerId alheio e token errado é rejeitado sem alterar a sala', async () => {
+    h = await Harness.create(5);
+    const a = h.clients[0];
+    const b = h.clients[1];
+    const countBefore = h.room.players.length;
+
+    b.socket.emit('join-room', { roomCode: h.code, playerName: 'Impostor', playerId: a.playerId, sessionToken: 'token-falso' });
+    await h.waitFor(() => b.lastError !== null, 'erro de reconexão spoofada');
+    expect(b.lastError).toBe('Identidade inválida para reconexão');
+    expect(h.room.players.length).toBe(countBefore);
+    expect(h.room.players.find((p: any) => p.id === a.playerId).name).toBe(a.name);
+  });
+
+  it('join-room de reconexão com token correto funciona', async () => {
+    h = await Harness.create(5);
+    const a = h.clients[0];
+    a.socket.emit('join-room', { roomCode: h.code, playerName: a.name, playerId: a.playerId, sessionToken: a.sessionToken });
+    await h.waitFor(() => h.room.players.length === 5 && a.roomSeq > 0, 'reconexão legítima');
+    expect(h.room.players.length).toBe(5);
+  });
+
+  it('payloads da sala nunca contêm sessionToken', async () => {
+    h = await Harness.create(5);
+    await h.startGame();
+    for (const c of h.clients) expect(c.sessionToken).toBeTruthy();
+    for (const viewer of h.clients) {
+      const json = JSON.stringify(viewer.room);
+      expect(json).not.toContain('sessionToken');
+      for (const c of h.clients) expect(json).not.toContain(c.sessionToken);
+    }
+  });
+});

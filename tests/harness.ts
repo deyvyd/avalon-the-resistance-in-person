@@ -29,6 +29,7 @@ export async function closeServer() {
 export interface TestClient {
   name: string;
   playerId: string;
+  sessionToken: string;
   socket: Socket;
   lastError: string | null;
   ladyResults: any[];
@@ -68,6 +69,7 @@ export class Harness {
       const client: TestClient = {
         name: `P${i + 1}`,
         playerId: `t-${runId}-${i}`,
+        sessionToken: '',
         socket,
         lastError: null,
         ladyResults: [],
@@ -75,6 +77,8 @@ export class Harness {
         roomSeq: 0,
       };
       socket.on('room-updated', (r: any) => { client.room = r; client.roomSeq = ++h.roomSeqCounter; });
+      socket.on('room-created', (a: any) => { if (a?.sessionToken) client.sessionToken = a.sessionToken; });
+      socket.on('joined-room', (a: any) => { if (a?.sessionToken) client.sessionToken = a.sessionToken; });
       socket.on('error', (e: any) => { client.lastError = e?.message ?? String(e); });
       socket.on('lady-result', (r: any) => { client.ladyResults.push(r); });
       h.clients.push(client);

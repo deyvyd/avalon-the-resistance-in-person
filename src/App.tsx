@@ -94,6 +94,11 @@ const getPersistentId = () => {
   return id;
 };
 
+const getSessionToken = () => sessionStorage.getItem('avalon_session_token');
+const setSessionToken = (token: string | undefined) => {
+  if (token) sessionStorage.setItem('avalon_session_token', token);
+};
+
 interface Player {
   id: string; // Persistent ID
   socketId: string;
@@ -695,14 +700,16 @@ const Home = () => {
 
   const handleJoin = () => {
     if (!name || !roomCode) return alert(t('app.fillNameAndCode'));
-    socket.emit('join-room', { roomCode: roomCode.toUpperCase(), playerName: name, playerId: getPersistentId() });
+    socket.emit('join-room', { roomCode: roomCode.toUpperCase(), playerName: name, playerId: getPersistentId(), sessionToken: getSessionToken() });
   };
 
   useEffect(() => {
-    socket.on('room-created', ({ roomCode }) => {
+    socket.on('room-created', ({ roomCode, sessionToken }) => {
+      setSessionToken(sessionToken);
       navigate(`/room/${roomCode}`);
     });
-    socket.on('joined-room', ({ roomCode }) => {
+    socket.on('joined-room', ({ roomCode, sessionToken }) => {
+      setSessionToken(sessionToken);
       navigate(`/room/${roomCode}`);
     });
     socket.on('error', ({ message }) => alert(message));
@@ -761,6 +768,7 @@ const Home = () => {
               <button 
                 onClick={() => {
                   sessionStorage.removeItem('avalon_player_id');
+                  sessionStorage.removeItem('avalon_session_token');
                   window.location.reload();
                 }}
                 className="text-[10px] uppercase tracking-widest flex items-center gap-2 mx-auto"
@@ -802,7 +810,7 @@ const Room = () => {
     socket.on('error', handleError);
 
     // Solicitar informações da sala ao entrar
-    socket.emit('get-room-info', { roomCode: code?.toUpperCase(), playerId: getPersistentId() });
+    socket.emit('get-room-info', { roomCode: code?.toUpperCase(), playerId: getPersistentId(), sessionToken: getSessionToken() });
     
     return () => {
       socket.off('room-updated', handleRoomUpdate);
@@ -813,7 +821,7 @@ const Room = () => {
   const handleJoin = () => {
     if (!playerName) return alert(t('app.enterNameAlert'));
     setIsJoining(true);
-    socket.emit('join-room', { roomCode: code?.toUpperCase(), playerName, playerId: getPersistentId() });
+    socket.emit('join-room', { roomCode: code?.toUpperCase(), playerName, playerId: getPersistentId(), sessionToken: getSessionToken() });
   };
 
   if (!room) {
