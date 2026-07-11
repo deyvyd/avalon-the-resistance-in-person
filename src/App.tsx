@@ -159,8 +159,11 @@ interface Room {
   currentLeaderIndex: number;
   rejectionCount: number;
   proposedTeam: string[];
-  teamVotes: Record<string, 'approve' | 'reject'>;
-  missionVotes: Record<string, 'success' | 'fail'>;
+  teamVotesCount: number;
+  missionVotesCount: number;
+  hasVotedTeam: boolean;
+  hasVotedMission: boolean;
+  knowledge: { playerId: string; hint: 'evil' | 'maybe-merlin' | 'lancelot'; team?: 'good' | 'evil' }[];
   lastTeamVoteResult?: TeamVoteResult;
   lastMissionVoteResult?: MissionVoteResult;
   assassinationTargetId?: string;
@@ -168,7 +171,6 @@ interface Room {
   winner?: 'good' | 'evil';
   gameOverReason?: string;
   lancelotConfig: any;
-  loyaltyDeck: string[];
   loyaltyDeckIndex: number;
   loyaltyDeckVisible: string[];
   lancelotLoyalty: { lancelotGoodTeam: 'good' | 'evil'; lancelotEvilTeam: 'good' | 'evil'; swapOccurred: boolean } | null;
@@ -1913,98 +1915,28 @@ const NarrationView = ({ room, isHost }: { room: Room; isHost: boolean }) => {
 
 const KnowledgeSection = ({ room, me }: { room: Room; me: Player }) => {
   const { t } = useTranslation();
-  const role = ROLES[me.role!];
-  if (!role) return null;
+  if (!room.knowledge || room.knowledge.length === 0) return null;
 
-  const knowledge: { name: string; info: string; icon: string; team?: Team; isMerlin?: boolean }[] = [];
-
-  // 1. Lancelots (Var 3)
-  const isVar3 = room.lancelotConfig?.variant?.includes('var3');
-  if (isVar3 && me.role?.includes('lancelot')) {
-    const otherLancelot = room.players.find(p => p.role?.includes('lancelot') && p.id !== me.id);
-    if (otherLancelot) {
-      const otherRole = ROLES[otherLancelot.role!];
-      knowledge.push({
-        name: otherLancelot.name,
-        info: t('app.game.lancelotLabel'),
-        icon: '⚔️',
-        team: otherRole.team
-      });
-    }
-  }
-
-  // 2. Evil Team (except Oberon)
-  const isEvil = role.team === 'evil';
-  const isOberon = me.role === 'oberon';
-  const isLancelotEvil = me.role === 'lancelot_evil';
-
-  if (isEvil && !isOberon && !isLancelotEvil) {
-    const otherEvil = room.players.filter(p => {
-      if (p.id === me.id) return false;
-      const otherRole = ROLES[p.role!];
-      return otherRole.team === 'evil' && p.role !== 'oberon';
-    });
-    otherEvil.forEach(p => {
-      knowledge.push({
-        name: p.name,
-        info: t('app.game.mal'),
-        icon: '🗡️',
-        team: 'evil'
-      });
-    });
-  }
-
-  // 3. Merlin
-  if (me.role === 'merlin') {
-    const evilPlayers = room.players.filter(p => {
-      if (p.id === me.id) return false;
-      const otherRole = ROLES[p.role!];
-      // Merlin sees all evil except Mordred
-      return otherRole.team === 'evil' && p.role !== 'mordred';
-    });
-    evilPlayers.forEach(p => {
-      knowledge.push({
-        name: p.name,
-        info: t('app.game.mal'),
-        icon: '💀',
-        team: 'evil'
-      });
-    });
-  }
-
-  // 4. Percival
-  if (me.role === 'percival') {
-    const merlinOrMorgana = room.players.filter(p => {
-      return p.role === 'merlin' || p.role === 'morgana';
-    });
-    merlinOrMorgana.forEach(p => {
-      knowledge.push({
-        name: p.name,
-        info: t('app.game.merlinMaybe'),
-        icon: '🧙‍♂️',
-        isMerlin: true
-      });
-    });
-  }
-
-  if (knowledge.length === 0) return null;
+  const nameOf = (id: string) => room.players.find(p => p.id === id)?.name ?? '?';
+  const iconFor = (hint: string) =>
+    hint === 'lancelot' ? '⚔️' : hint === 'maybe-merlin' ? '🧙‍♂️' : me.role === 'merlin' ? '💀' : '🗡️';
 
   return (
     <div className="space-y-3 mt-4 pt-4 border-t border-white/10">
       <h3 className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{t('app.game.acquiredKnowledge')}</h3>
       <div className="grid grid-cols-1 gap-2">
-        {knowledge.map((k, i) => (
+        {room.knowledge.map((k, i) => (
           <div key={i} className="flex items-center justify-between p-2 bg-black/20 rounded-lg border border-white/5">
             <div className="flex items-center gap-3">
-              <span className="text-xl">{k.icon}</span>
-              <p className="text-xs font-bold text-white">{k.name}</p>
+              <span className="text-xl">{iconFor(k.hint)}</span>
+              <p className="text-xs font-bold text-white">{nameOf(k.playerId)}</p>
             </div>
             <div className="flex gap-1 items-center">
-              {k.isMerlin ? (
+              {k.hint === 'maybe-merlin' ? (
                 <Badge variant="purple">{t('app.game.merlinMaybe')}</Badge>
               ) : (
                 <>
-                  {k.info === t('app.game.lancelotLabel') && <span className="text-[10px] text-gray-400 font-bold mr-1">{t('app.game.lancelotLabel')}</span>}
+                  {k.hint === 'lancelot' && <span className="text-[10px] text-gray-400 font-bold mr-1">{t('app.game.lancelotLabel')}</span>}
                   <Badge team={k.team}>{k.team === 'good' ? t('app.game.good') : t('app.game.evil')}</Badge>
                 </>
               )}
@@ -2299,10 +2231,10 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
             </div>
 
             <div className="space-y-4">
-              {room.teamVotes[playerId || ''] ? (
+              {room.hasVotedTeam ? (
                 <div className="py-8 space-y-4">
                   <p className="text-gray-400 italic">{t('app.game.youVoted')}</p>
-                  <p className="text-sm text-gray-500">{t('app.game.waitingPlayers', { voted: Object.keys(room.teamVotes).length, total: room.players.length })}</p>
+                  <p className="text-sm text-gray-500">{t('app.game.waitingPlayers', { voted: room.teamVotesCount, total: room.players.length })}</p>
                 </div>
               ) : (
                 <div className="flex gap-4">
@@ -2311,7 +2243,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
                 </div>
               )}
 
-              {isHost && Object.keys(room.teamVotes).length === room.players.length && (
+              {isHost && room.teamVotesCount === room.players.length && (
                 <div className="py-4 animate-pulse text-[#ffd700] italic">{t('app.game.revealingVotes')}</div>
               )}
             </div>
@@ -2337,10 +2269,10 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
             </div>
             <div className="space-y-4">
               {room.proposedTeam.includes(playerId || '') ? (
-                room.missionVotes[playerId || ''] ? (
+                room.hasVotedMission ? (
                   <div className="py-8 space-y-4">
                     <p className="text-gray-400 italic">{t('app.game.youActed')}</p>
-                    <p className="text-sm text-gray-500">{t('app.game.waitingTeamVotes', { voted: Object.keys(room.missionVotes).length, total: room.proposedTeam.length })}</p>
+                    <p className="text-sm text-gray-500">{t('app.game.waitingTeamVotes', { voted: room.missionVotesCount, total: room.proposedTeam.length })}</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -2358,11 +2290,11 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
               ) : (
                 <div className="py-8 space-y-4">
                   <p className="text-gray-400 italic">{t('app.game.teamOnMission')}</p>
-                  <p className="text-sm text-gray-500">{t('app.game.waitingResults', { voted: Object.keys(room.missionVotes).length, total: room.proposedTeam.length })}</p>
+                  <p className="text-sm text-gray-500">{t('app.game.waitingResults', { voted: room.missionVotesCount, total: room.proposedTeam.length })}</p>
                 </div>
               )}
 
-              {isHost && Object.keys(room.missionVotes).length === room.proposedTeam.length && (
+              {isHost && room.missionVotesCount === room.proposedTeam.length && (
                 <div className="py-4 animate-pulse text-[#ffd700] italic">{t('app.game.revealingResult')}</div>
               )}
             </div>
@@ -2553,7 +2485,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
               <div className="space-y-4">
                 <p className="font-bold">{t('app.game.whoIsMerlin')}</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {room.players.filter(p => p.role && ROLES[p.role].team === 'good').map(p => (
+                  {room.players.filter(p => p.id !== playerId).map(p => (
                     <div key={p.id}>
                       <Button variant="outline" onClick={() => socket.emit('assassinate', { roomCode: room.code, targetPlayerId: p.id })} className="text-sm">
                         {formatName(p)}
