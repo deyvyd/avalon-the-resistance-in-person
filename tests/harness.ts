@@ -32,14 +32,31 @@ export interface TestClient {
   socket: Socket;
   lastError: string | null;
   ladyResults: any[];
+  room: any; // última visão da sala recebida POR ESTE cliente
+  roomSeq: number; // ordem global de recebimento (para reconstruir "última visão conhecida por alguém")
 }
 
 const EVIL_ROLES = new Set(['assassin', 'minion', 'morgana', 'mordred', 'oberon', 'lancelot_evil']);
 
 export class Harness {
   clients: TestClient[] = [];
-  room: any = null;
   code = '';
+  private roomSeqCounter = 0;
+
+  /**
+   * Última visão da sala conhecida por QUALQUER cliente (equivalente ao antigo
+   * comportamento de sobrescrita única). Útil em asserts/waitFor que não têm um
+   * cliente específico em mente — ex. após um cliente sair da sala e parar de
+   * receber updates, este getter ainda reflete o estado mais recente visto por
+   * outro cliente.
+   */
+  get room() {
+    let best: TestClient | null = null;
+    for (const c of this.clients) {
+      if (c.room && (!best || c.roomSeq > best.roomSeq)) best = c;
+    }
+    return best?.room ?? null;
+  }
 
   static async create(playerCount: number): Promise<Harness> {
     const url = await ensureServer();
@@ -54,8 +71,10 @@ export class Harness {
         socket,
         lastError: null,
         ladyResults: [],
+        room: null,
+        roomSeq: 0,
       };
-      socket.on('room-updated', (r: any) => { h.room = r; });
+      socket.on('room-updated', (r: any) => { client.room = r; client.roomSeq = ++h.roomSeqCounter; });
       socket.on('error', (e: any) => { client.lastError = e?.message ?? String(e); });
       socket.on('lady-result', (r: any) => { client.ladyResults.push(r); });
       h.clients.push(client);
@@ -86,20 +105,19 @@ export class Harness {
     return this.byId(this.room.players[this.room.currentLeaderIndex].id);
   }
 
-  playersByTeam(team: 'good' | 'evil'): TestClient[] {
-    return this.room.players
-      .filter((p: any) => (team === 'evil') === EVIL_ROLES.has(p.role))
-      .map((p: any) => this.byId(p.id));
+  /** Papel do cliente segundo a visão DELE próprio. */
+  roleOf(client: TestClient): string {
+    return client.room.players.find((p: any) => p.id === client.playerId).role;
   }
 
-  roleOf(client: TestClient): string {
-    return this.room.players.find((p: any) => p.id === client.playerId).role;
+  playersByTeam(team: 'good' | 'evil'): TestClient[] {
+    return this.clients.filter(c => (team === 'evil') === EVIL_ROLES.has(this.roleOf(c)));
   }
 
   withRole(role: string): TestClient {
-    const p = this.room.players.find((p: any) => p.role === role);
-    if (!p) throw new Error(`nenhum jogador com papel ${role}`);
-    return this.byId(p.id);
+    const c = this.clients.find(c => this.roleOf(c) === role);
+    if (!c) throw new Error(`nenhum jogador com papel ${role}`);
+    return c;
   }
 
   async waitFor(cond: () => boolean, label = 'condição', timeout = 5000) {
