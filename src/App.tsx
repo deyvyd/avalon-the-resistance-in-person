@@ -267,7 +267,7 @@ const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!musicRef.current) {
-      musicRef.current = new Audio('/src/assets/audios/soundtrack-selection.mp3');
+      musicRef.current = new Audio(new URL('./assets/audios/soundtrack-selection.mp3', import.meta.url).href);
       musicRef.current.loop = true;
     }
 
@@ -1761,7 +1761,7 @@ const NarrationView = ({ room, isHost }: { room: Room; isHost: boolean }) => {
 
     setStep(index);
     const audioFile = sequence[index];
-    const audio = new Audio(`/src/assets/audios/${audioFile}.mp3`);
+    const audio = new Audio(new URL(`./assets/audios/${audioFile}.mp3`, import.meta.url).href);
     audio.volume = settings.narrationVolume;
     audioRef.current = audio;
 
