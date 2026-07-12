@@ -9,7 +9,7 @@ import { Server } from "socket.io";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
-import { generateNarrationSequence, Roles, LANCELOT_CONFIGS, generateLoyaltyDeck } from "./src/core/avalon.ts";
+import { generateNarrationSequence, Roles, LANCELOT_CONFIGS, generateLoyaltyDeck, shuffle } from "./src/core/avalon.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,8 +17,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
+  // Cliente é servido pelo mesmo servidor (same-origin); origens extras só via env
   cors: {
-    origin: "*",
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : false,
     methods: ["GET", "POST"],
   },
   path: '/avalon/socket.io',
@@ -118,6 +119,7 @@ interface Room {
   winner?: 'good' | 'evil';
   gameOverReason?: string;
   createdAt: Date;
+  lastActivityAt: Date;
   // New fields
   lancelotConfig: LancelotConfig | null;
   loyaltyDeck: ('none' | 'switch')[];
@@ -146,11 +148,26 @@ interface Room {
 const rooms = new Map<string, Room>();
 const socketToPlayer = new Map<string, { roomCode: string, playerId: string }>();
 
-// Cleanup old rooms
+// Erros com código estável para o cliente traduzir; message é fallback em PT
+const ERROR_MESSAGES: Record<string, string> = {
+  ROOM_NOT_FOUND: "Sala não encontrada",
+  ROOM_FULL: "Sala cheia",
+  GAME_ALREADY_STARTED: "Jogo já iniciado",
+  INVALID_IDENTITY: "Identidade inválida para reconexão",
+  LANCELOT_GOOD_MUST_SUCCEED: "Lancelot do Bem deve jogar Sucesso nesta variante.",
+  LANCELOT_EVIL_MUST_FAIL: "Lancelot do Mal deve jogar Falha nesta variante.",
+  GOOD_MUST_SUCCEED: "Servos Leais de Arthur devem jogar Sucesso.",
+};
+
+function emitError(socket: { emit: (ev: string, payload: any) => void }, code: keyof typeof ERROR_MESSAGES) {
+  socket.emit("error", { code, message: ERROR_MESSAGES[code] });
+}
+
+// Remove salas sem atividade há 4h (não por idade — partidas longas sobrevivem)
 setInterval(() => {
-  const now = new Date();
+  const now = Date.now();
   for (const [code, room] of rooms.entries()) {
-    if (now.getTime() - room.createdAt.getTime() > 4 * 60 * 60 * 1000) {
+    if (now - room.lastActivityAt.getTime() > 4 * 60 * 60 * 1000) {
       rooms.delete(code);
     }
   }
@@ -176,6 +193,7 @@ io.on("connection", (socket) => {
       teamVotes: {},
       missionVotes: {},
       createdAt: new Date(),
+      lastActivityAt: new Date(),
       lancelotConfig: null,
       loyaltyDeck: [],
       loyaltyDeckIndex: 0,
@@ -205,7 +223,7 @@ io.on("connection", (socket) => {
   socket.on("get-room-info", ({ roomCode, playerId, sessionToken }) => {
     const room = rooms.get(roomCode);
     if (!room) {
-      socket.emit("error", { message: "Sala não encontrada" });
+      emitError(socket, "ROOM_NOT_FOUND");
       return;
     }
 
@@ -224,7 +242,7 @@ io.on("connection", (socket) => {
   socket.on("join-room", ({ roomCode, playerName, playerId, sessionToken }) => {
     const room = rooms.get(roomCode);
     if (!room) {
-      socket.emit("error", { message: "Sala não encontrada" });
+      emitError(socket, "ROOM_NOT_FOUND");
       return;
     }
 
@@ -232,7 +250,7 @@ io.on("connection", (socket) => {
     if (existingPlayer) {
       // Reconexão exige token de sessão válido — impede spoof de identidade via playerId público
       if (!sessionToken || existingPlayer.sessionToken !== sessionToken) {
-        socket.emit("error", { message: "Identidade inválida para reconexão" });
+        emitError(socket, "INVALID_IDENTITY");
         return;
       }
       console.log(`Player ${playerId} rejoining room ${roomCode}. Previous name: ${existingPlayer.name}, New name: ${playerName}`);
@@ -248,11 +266,11 @@ io.on("connection", (socket) => {
     console.log(`New player ${playerId} (${playerName}) joining room ${roomCode}`);
 
     if (room.players.length >= 10) {
-      socket.emit("error", { message: "Sala cheia" });
+      emitError(socket, "ROOM_FULL");
       return;
     }
     if (room.phase !== 'lobby') {
-      socket.emit("error", { message: "Jogo já iniciado" });
+      emitError(socket, "GAME_ALREADY_STARTED");
       return;
     }
 
@@ -534,18 +552,18 @@ io.on("connection", (socket) => {
     // Lancelot mandatory check
     if (isLancelot && room.lancelotConfig?.mandatory) {
       if (currentTeam === 'good' && vote === 'fail') {
-        socket.emit("error", { message: "Lancelot do Bem deve jogar Sucesso nesta variante." });
+        emitError(socket, "LANCELOT_GOOD_MUST_SUCCEED");
         return;
       }
       if (currentTeam === 'evil' && vote === 'success') {
-        socket.emit("error", { message: "Lancelot do Mal deve jogar Falha nesta variante." });
+        emitError(socket, "LANCELOT_EVIL_MUST_FAIL");
         return;
       }
     }
 
     // Normal Good check
     if (!isLancelot && currentTeam === 'good' && vote === 'fail') {
-      socket.emit("error", { message: "Servos Leais de Arthur devem jogar Sucesso." });
+      emitError(socket, "GOOD_MUST_SUCCEED");
       return;
     }
 
@@ -857,6 +875,7 @@ function serializeRoomFor(room: Room, viewerId: string | null) {
 }
 
 function broadcastRoom(room: Room) {
+  room.lastActivityAt = new Date(); // todo avanço de estado passa por aqui
   for (const p of room.players) {
     if (p.socketId) {
       io.to(p.socketId).emit('room-updated', serializeRoomFor(room, p.id));
@@ -878,7 +897,7 @@ function processMissionResult(room: Room, roomCode: string) {
   } else {
     mission.status = 'fail';
   }
-  mission.votes = [...votes].sort(() => Math.random() - 0.5);
+  mission.votes = shuffle(votes);
 
   room.lastMissionVoteResult = {
     votes: mission.votes,
@@ -958,15 +977,8 @@ function checkGameOver(room: Room) {
   const failures = room.missions.filter(m => m.status === 'fail').length;
 
   if (successes >= 3) {
-    const hasAssassin = room.players.some(p => p.role === 'assassin');
-    if (hasAssassin) {
-      room.phase = 'assassination';
-    } else {
-      room.phase = 'game-over';
-      room.winner = 'good';
-      room.gameOverReason = 'Três missões bem-sucedidas!';
-      saveMatchHistory(room);
-    }
+    // Assassino é papel obrigatório — 3 sucessos sempre levam à fase de assassinato
+    room.phase = 'assassination';
     return true;
   }
 
@@ -1043,7 +1055,7 @@ function assignRoles(playerIds: string[], selectedOptionalRoles: string[]): Reco
   for (let i = 0; i < distribution.good - currentGood; i++) rolesToAssign.push('servant');
   for (let i = 0; i < distribution.evil - currentEvil; i++) rolesToAssign.push('minion');
 
-  const shuffledRoles = [...rolesToAssign].sort(() => Math.random() - 0.5);
+  const shuffledRoles = shuffle(rolesToAssign);
   const assignments: Record<string, string> = {};
   playerIds.forEach((id, index) => {
     assignments[id] = shuffledRoles[index];

@@ -86,17 +86,20 @@ const DEFAULT_SETTINGS: AvalonSettings = {
 };
 
 const getPersistentId = () => {
-  let id = sessionStorage.getItem('avalon_player_id');
+  // localStorage: identidade sobrevive a nova aba / fechamento do browser
+  // (migra ids antigos que estavam em sessionStorage)
+  let id = localStorage.getItem('avalon_player_id') ?? sessionStorage.getItem('avalon_player_id');
   if (!id) {
     id = Math.random().toString(36).substring(2, 15);
-    sessionStorage.setItem('avalon_player_id', id);
   }
+  localStorage.setItem('avalon_player_id', id);
   return id;
 };
 
-const getSessionToken = () => sessionStorage.getItem('avalon_session_token');
+const getSessionToken = () =>
+  localStorage.getItem('avalon_session_token') ?? sessionStorage.getItem('avalon_session_token');
 const setSessionToken = (token: string | undefined) => {
-  if (token) sessionStorage.setItem('avalon_session_token', token);
+  if (token) localStorage.setItem('avalon_session_token', token);
 };
 
 interface Player {
@@ -128,6 +131,18 @@ type GamePhase =
   | 'lady-of-the-lake'
   | 'assassination'
   | 'game-over';
+
+interface MatchRecord {
+  id: string;
+  timestamp: string;
+  playerCount: number;
+  players: { name: string; role: string; team: 'good' | 'evil' }[];
+  options: { lancelot: string; ladyOfLake: boolean; excalibur: boolean; targeting: boolean };
+  missions: { status: 'pending' | 'success' | 'fail'; fails: number }[];
+  winner: 'good' | 'evil';
+  reason: string;
+  duration: number;
+}
 
 interface TeamVoteResult {
   votes: Record<string, 'approve' | 'reject'>;
@@ -161,7 +176,15 @@ interface Room {
   firstLeaderId?: string;
   winner?: 'good' | 'evil';
   gameOverReason?: string;
-  lancelotConfig: any;
+  lancelotConfig: {
+    id: string;
+    variant: 'var1' | 'var2' | 'var3' | 'var1_var2' | 'var1_var3' | 'var2_var3' | null;
+    deckSize: number;
+    deckRevealed: boolean;
+    startsAt: number;
+    mandatory: boolean;
+    recognition: boolean;
+  } | null;
   loyaltyDeckIndex: number;
   loyaltyDeckVisible: string[];
   lancelotLoyalty: { lancelotGoodTeam: 'good' | 'evil'; lancelotEvilTeam: 'good' | 'evil'; swapOccurred: boolean } | null;
@@ -176,7 +199,7 @@ interface Room {
   excaliburReveal: 'success' | 'fail' | null;
   targetingEnabled: boolean;
   attemptedMissions: number[];
-  matchHistory: any[];
+  matchHistory: MatchRecord[];
   currentMatchStartedAt: Date | null;
 }
 
@@ -630,7 +653,7 @@ const Badge = ({ children, team, variant }: { children: ReactNode; team?: Team; 
 
 // --- Pages ---
 
-const MatchHistoryView = ({ history, onBack }: { history: any[]; onBack: () => void }) => {
+const MatchHistoryView = ({ history, onBack }: { history: MatchRecord[]; onBack: () => void }) => {
   const { t } = useTranslation();
   return (
     <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
@@ -651,7 +674,7 @@ const MatchHistoryView = ({ history, onBack }: { history: any[]; onBack: () => v
             </div>
             
             <div className="grid grid-cols-5 gap-1">
-              {match.missions.map((m: any, i: number) => (
+              {match.missions.map((m, i) => (
                 <div key={i} className={`h-2 rounded-full ${m.status === 'success' ? 'bg-[#3498db]' : m.status === 'fail' ? 'bg-[#c0392b]' : 'bg-gray-700'}`}></div>
               ))}
             </div>
@@ -660,7 +683,7 @@ const MatchHistoryView = ({ history, onBack }: { history: any[]; onBack: () => v
             
             <div className="pt-2 border-t border-white/5 space-y-2">
               <div className="flex flex-wrap gap-1">
-                {match.players.map((p: any, i: number) => (
+                {match.players.map((p, i) => (
                   <span key={i} className={`text-[9px] px-1.5 py-0.5 rounded border ${p.team === 'good' ? 'border-[#3498db]/30 text-[#3498db]' : 'border-[#c0392b]/30 text-[#c0392b]'}`}>
                     {p.name} ({getRoleInfo(p.role, t).name})
                   </span>
@@ -697,22 +720,28 @@ const Home = () => {
   };
 
   useEffect(() => {
-    socket.on('room-created', ({ roomCode, sessionToken }) => {
+    const handleRoomCreated = ({ roomCode, sessionToken }: any) => {
       setSessionToken(sessionToken);
       navigate(`/room/${roomCode}`);
-    });
-    socket.on('joined-room', ({ roomCode, sessionToken }) => {
+    };
+    const handleJoined = ({ roomCode, sessionToken }: any) => {
       setSessionToken(sessionToken);
       navigate(`/room/${roomCode}`);
-    });
-    socket.on('error', ({ message }) => alert(message));
+    };
+    const handleError = ({ code, message }: { code?: string; message: string }) =>
+      alert(code ? t(`errors.${code}`, message) : message);
+
+    socket.on('room-created', handleRoomCreated);
+    socket.on('joined-room', handleJoined);
+    socket.on('error', handleError);
 
     return () => {
-      socket.off('room-created');
-      socket.off('joined-room');
-      socket.off('error');
+      // off com referência: off('error') sem handler removeria listeners de outros componentes
+      socket.off('room-created', handleRoomCreated);
+      socket.off('joined-room', handleJoined);
+      socket.off('error', handleError);
     };
-  }, [socket, navigate]);
+  }, [socket, navigate, t]);
 
   return (
     <Layout showTitle={false} onSettingsClick={() => setShowSettings(true)}>
@@ -760,6 +789,8 @@ const Home = () => {
             <div className="pt-8 opacity-40 hover:opacity-100 transition-opacity">
               <button 
                 onClick={() => {
+                  localStorage.removeItem('avalon_player_id');
+                  localStorage.removeItem('avalon_session_token');
                   sessionStorage.removeItem('avalon_player_id');
                   sessionStorage.removeItem('avalon_session_token');
                   window.location.reload();
@@ -793,10 +824,10 @@ const Room = () => {
       setIsJoining(false);
     };
 
-    const handleError = ({ message }: { message: string }) => {
-      alert(message);
+    const handleError = ({ code, message }: { code?: string; message: string }) => {
+      alert(code ? t(`errors.${code}`, message) : message);
       setIsJoining(false);
-      if (message === "Sala não encontrada") navigate('/');
+      if (code === 'ROOM_NOT_FOUND') navigate('/');
     };
 
     socket.on('room-updated', handleRoomUpdate);
@@ -1259,7 +1290,6 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
         }}
         initialConfig={lancelotConfigId === 'none' ? null : lancelotConfigId}
       />
-      <GameGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
       <div className="text-center space-y-2">
         <div className="flex justify-between items-center px-4">
           <div className="w-10"></div>
@@ -1300,7 +1330,7 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${p.id === room.hostId ? 'bg-[#ffd700]' : 'bg-green-500'}`}></div>
                 <span className="truncate font-bold">
                   {p.name}
-                  {p.id === socket.id && <span className="font-normal text-blue-300 ml-1">{t('app.me')}</span>}
+                  {p.id === getPersistentId() && <span className="font-normal text-blue-300 ml-1">{t('app.me')}</span>}
                 </span>
                 {room.firstLeaderId === p.id && <Crown size={14} className="text-[#ffd700] flex-shrink-0" />}
               </div>
@@ -1762,7 +1792,8 @@ const NarrationView = ({ room, isHost }: { room: Room; isHost: boolean }) => {
     setStep(index);
     const audioFile = sequence[index];
     const audio = new Audio(new URL(`./assets/audios/${audioFile}.mp3`, import.meta.url).href);
-    audio.volume = settings.narrationVolume;
+    // HTMLAudioElement lança IndexSizeError acima de 1.0; slider vai até 1.5 como "boost" visual
+    audio.volume = Math.min(1, settings.narrationVolume);
     audioRef.current = audio;
 
     audio.onended = () => {
@@ -1942,7 +1973,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
   const { t } = useTranslation();
   const socket = useSocket();
   const { showSettings } = useSettings();
-  const playerId = sessionStorage.getItem('avalon_player_id');
+  const playerId = getPersistentId();
   const currentMission = room.missions[room.currentMissionIndex];
   const leader = room.players[room.currentLeaderIndex];
   const isLeader = playerId === leader.id;
@@ -2341,12 +2372,14 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
                 <p className="text-sm font-bold">{t('app.game.excaliburChoosePlayer')}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {room.proposedTeam.map(id => (
-                    <Button 
-                      variant="outline" 
+                    <div key={id}>
+                    <Button
+                      variant="outline"
                       onClick={() => socket.emit('use-excalibur', { roomCode: room.code, targetPlayerId: id })}
                     >
                       {room.players.find(p => p.id === id)?.name}
                     </Button>
+                    </div>
                   ))}
                 </div>
                 <Button variant="secondary" onClick={() => socket.emit('skip-excalibur', { roomCode: room.code })}>{t('app.game.skipUse')}</Button>
@@ -2430,12 +2463,14 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
                 <p className="text-sm font-bold">{t('app.game.ladyChoosePlayer')}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {room.players.filter(p => p.id !== playerId && !room.ladyOfLakeUsed.includes(p.id)).map(p => (
-                    <Button 
-                      variant="outline" 
+                    <div key={p.id}>
+                    <Button
+                      variant="outline"
                       onClick={() => socket.emit('lady-examine', { roomCode: room.code, targetPlayerId: p.id })}
                     >
                       {p.name}
                     </Button>
+                    </div>
                   ))}
                 </div>
               </div>

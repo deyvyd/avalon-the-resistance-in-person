@@ -45,26 +45,26 @@
     "1": "Bem-vindos ao Avalon...",
     "2": "Todos fechem os olhos...",
     "3": "Servos do Mal, levantem o polegar",
-    "3-lancelot": "Servos do Mal, levantem o polegar",
     "4": "Servos do Mal, abram os olhos e conheçam seus companheiros",
-    "4-oberon": "Servos do Mal, exceto Oberon, abram os olhos...",
-    "4-lancelot": "Servos do Mal, abram os olhos e conheçam seus companheiros",
-    "4-oberon-lancelot": "Servos do Mal, exceto Oberon, abram os olhos...",
     "5": "Servos do Mal, fechem os olhos",
-    "5-mordred": "Servos do Mal, fechem os olhos. Mordred, abaixe seu polegar",
-    "5-lancelot": "Servos do Mal, fechem os olhos",
-    "5-mordred-lancelot": "Servos do Mal, fechem os olhos. Mordred, abaixe seu polegar",
     "6": "Merlin, abra os olhos e veja os servos do mal",
     "7": "Servos do Mal, abaixem seus polegares. Merlin, feche os olhos",
     "8": "Merlin, levante o polegar",
-    "8-morgana": "Merlin e Morgana, levantem o polegar",
     "9": "Percival, abra os olhos e veja Merlin",
-    "9-morgana": "Percival, abra os olhos e veja Merlin e Morgana",
     "10": "Percival, feche os olhos. Todos abaixem suas mãos",
     "11": "Lancelots, abram os olhos e conheçam-se",
     "12": "Lancelots, fechem os olhos",
     "13": "Todos podem abrir os olhos",
-    "14": "Que comecem as missões de Avalon! Boa sorte, cavaleiros e servos"
+    "14": "Que comecem as missões de Avalon! Boa sorte, cavaleiros e servos",
+    "3-lancelot": "Servos do Mal, levantem o polegar",
+    "4-oberon": "Servos do Mal, exceto Oberon, abram os olhos...",
+    "4-lancelot": "Servos do Mal, abram os olhos e conheçam seus companheiros",
+    "4-oberon-lancelot": "Servos do Mal, exceto Oberon, abram os olhos...",
+    "5-mordred": "Servos do Mal, fechem os olhos. Mordred, abaixe seu polegar",
+    "5-lancelot": "Servos do Mal, fechem os olhos",
+    "5-mordred-lancelot": "Servos do Mal, fechem os olhos. Mordred, abaixe seu polegar",
+    "8-morgana": "Merlin e Morgana, levantem o polegar",
+    "9-morgana": "Percival, abra os olhos e veja Merlin e Morgana"
   },
   "app": {
     "subtitle": "Resistência & Traição",
@@ -507,5 +507,14 @@
     "optional_lancelot_no_change_en": "No Change",
     "optional_lancelot_switch": "Trocar de Lado",
     "optional_lancelot_switch_en": "Switch Allegiance"
+  },
+  "errors": {
+    "ROOM_NOT_FOUND": "Sala não encontrada",
+    "ROOM_FULL": "Sala cheia",
+    "GAME_ALREADY_STARTED": "Jogo já iniciado",
+    "INVALID_IDENTITY": "Identidade inválida para reconexão",
+    "LANCELOT_GOOD_MUST_SUCCEED": "Lancelot do Bem deve jogar Sucesso nesta variante.",
+    "LANCELOT_EVIL_MUST_FAIL": "Lancelot do Mal deve jogar Falha nesta variante.",
+    "GOOD_MUST_SUCCEED": "Servos Leais de Arthur devem jogar Sucesso."
   }
 }

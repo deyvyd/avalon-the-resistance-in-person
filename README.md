@@ -48,6 +48,9 @@ Start command: `npm run start`
 Required environment variables:
 - `NODE_ENV=production`
 - `PORT=3000` (optional, defaults to 3000)
+- `CORS_ORIGIN` (optional) — comma-separated list of extra allowed origins for Socket.io; by default only same-origin clients can connect
+
+> **Note:** rooms live in server memory only. A server restart or redeploy drops all active rooms and matches — avoid deploying while games are running.
 
 Both domains (`jogos.deyvyd.com` and `games.deyvyd.com`) point via CNAME to the same Render service. Language detection is client-side via `window.location.hostname`.
 

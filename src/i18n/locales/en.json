@@ -45,26 +45,26 @@
     "1": "Welcome to Avalon...",
     "2": "Everyone, close your eyes...",
     "3": "Servants of Evil, raise your thumbs",
-    "3-lancelot": "Servants of Evil, raise your thumbs",
     "4": "Servants of Evil, open your eyes and behold your companions",
-    "4-oberon": "Servants of Evil, except Oberon, open your eyes...",
-    "4-lancelot": "Servants of Evil, open your eyes and behold your companions",
-    "4-oberon-lancelot": "Servants of Evil, except Oberon, open your eyes...",
     "5": "Servants of Evil, close your eyes",
-    "5-mordred": "Servants of Evil, close your eyes. Mordred, lower your thumb",
-    "5-lancelot": "Servants of Evil, close your eyes",
-    "5-mordred-lancelot": "Servants of Evil, close your eyes. Mordred, lower your thumb",
     "6": "Merlin, open your eyes and behold the servants of evil",
     "7": "Servants of Evil, lower your thumbs. Merlin, close your eyes",
     "8": "Merlin, raise your thumb",
-    "8-morgana": "Merlin and Morgana, raise your thumbs",
     "9": "Percival, open your eyes and behold Merlin",
-    "9-morgana": "Percival, open your eyes and behold Merlin and Morgana",
     "10": "Percival, close your eyes. Everyone, lower your hands",
     "11": "Lancelots, open your eyes and know one another",
     "12": "Lancelots, close your eyes",
     "13": "Everyone may open their eyes",
-    "14": "Let the quests of Avalon begin! Good luck, knights and servants"
+    "14": "Let the quests of Avalon begin! Good luck, knights and servants",
+    "3-lancelot": "Servants of Evil, raise your thumbs",
+    "4-oberon": "Servants of Evil, except Oberon, open your eyes...",
+    "4-lancelot": "Servants of Evil, open your eyes and behold your companions",
+    "4-oberon-lancelot": "Servants of Evil, except Oberon, open your eyes...",
+    "5-mordred": "Servants of Evil, close your eyes. Mordred, lower your thumb",
+    "5-lancelot": "Servants of Evil, close your eyes",
+    "5-mordred-lancelot": "Servants of Evil, close your eyes. Mordred, lower your thumb",
+    "8-morgana": "Merlin and Morgana, raise your thumbs",
+    "9-morgana": "Percival, open your eyes and behold Merlin and Morgana"
   },
   "app": {
     "subtitle": "Resistance & Betrayal",
@@ -507,5 +507,14 @@
     "optional_lancelot_no_change_en": "No Change",
     "optional_lancelot_switch": "Switch Allegiance",
     "optional_lancelot_switch_en": "Switch Allegiance"
+  },
+  "errors": {
+    "ROOM_NOT_FOUND": "Room not found",
+    "ROOM_FULL": "Room is full",
+    "GAME_ALREADY_STARTED": "Game already started",
+    "INVALID_IDENTITY": "Invalid identity for reconnection",
+    "LANCELOT_GOOD_MUST_SUCCEED": "Good Lancelot must play Success in this variant.",
+    "LANCELOT_EVIL_MUST_FAIL": "Evil Lancelot must play Fail in this variant.",
+    "GOOD_MUST_SUCCEED": "Loyal Servants of Arthur must play Success."
   }
 }
