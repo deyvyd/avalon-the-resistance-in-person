@@ -9,7 +9,7 @@ import { Server } from "socket.io";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
-import { generateNarrationSequence, Roles } from "./src/core/avalon.ts";
+import { generateNarrationSequence, Roles, LANCELOT_CONFIGS, generateLoyaltyDeck } from "./src/core/avalon.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -143,15 +143,6 @@ interface Room {
   currentMatchStartedAt: Date | null;
 }
 
-function generateLoyaltyDeck(deckSize: number): ('none' | 'switch')[] {
-  if (deckSize <= 0) return [];
-  const deck: ('none' | 'switch')[] = [];
-  const swaps = Math.max(1, Math.floor(deckSize / 2)); // At least one swap if deck exists
-  for (let i = 0; i < swaps; i++) deck.push('switch');
-  for (let i = 0; i < deckSize - swaps; i++) deck.push('none');
-  return deck.sort(() => Math.random() - 0.5);
-}
-
 const rooms = new Map<string, Room>();
 const socketToPlayer = new Map<string, { roomCode: string, playerId: string }>();
 
@@ -273,11 +264,17 @@ io.on("connection", (socket) => {
     broadcastRoom(room);
   });
 
-  socket.on("reorder-players", ({ roomCode, players }) => {
+  socket.on("reorder-players", ({ roomCode, playerIds }) => {
     const room = rooms.get(roomCode);
     const { playerId } = socketToPlayer.get(socket.id) || {};
     if (!room || playerId !== room.hostId || room.phase !== 'lobby') return;
-    room.players = players;
+
+    // Aceita apenas uma permutação dos ids atuais — nunca objetos vindos do cliente
+    if (!Array.isArray(playerIds) || playerIds.length !== room.players.length) return;
+    if (new Set(playerIds).size !== playerIds.length) return;
+    if (!playerIds.every((id: string) => room.players.some(p => p.id === id))) return;
+
+    room.players = playerIds.map((id: string) => room.players.find(p => p.id === id)!);
     broadcastRoom(room);
   });
 
@@ -289,10 +286,16 @@ io.on("connection", (socket) => {
     broadcastRoom(room);
   });
 
-  socket.on("start-game", ({ roomCode, selectedRoles, lancelotConfig, ladyOfLakeEnabled, excaliburEnabled, targetingEnabled }) => {
+  socket.on("start-game", ({ roomCode, selectedRoles, lancelotConfigId, ladyOfLakeEnabled, excaliburEnabled, targetingEnabled }) => {
     const room = rooms.get(roomCode);
     const { playerId } = socketToPlayer.get(socket.id) || {};
     if (!room || playerId !== room.hostId) return;
+
+    // Config do Lancelot resolvida no servidor — cliente envia só o id da variante
+    const lancelotConfig: LancelotConfig | null =
+      typeof lancelotConfigId === 'string' && LANCELOT_CONFIGS[lancelotConfigId]
+        ? { id: lancelotConfigId, ...LANCELOT_CONFIGS[lancelotConfigId] }
+        : null;
 
     room.selectedRoles = selectedRoles;
     room.lancelotConfig = lancelotConfig;
@@ -513,33 +516,6 @@ io.on("connection", (socket) => {
     broadcastRoom(room);
   });
 
-  socket.on("reveal-team-vote", ({ roomCode }) => {
-    // Deprecated but kept for compatibility if needed
-    const room = rooms.get(roomCode);
-    if (!room || socket.id !== room.hostId) return;
-    
-    if (Object.keys(room.teamVotes).length < room.players.length) return;
-
-    const votes = Object.values(room.teamVotes);
-    const approves = votes.filter(v => v === 'approve').length;
-    const rejects = votes.length - approves;
-    const passed = approves > rejects;
-
-    room.lastTeamVoteResult = {
-      votes: { ...room.teamVotes },
-      passed
-    };
-    room.phase = 'team-result';
-    
-    if (!passed) {
-      room.rejectionCount++;
-    } else {
-      room.rejectionCount = 0;
-    }
-
-    broadcastRoom(room);
-  });
-
   socket.on("vote-mission", ({ roomCode, vote }) => {
     const room = rooms.get(roomCode);
     const { playerId } = socketToPlayer.get(socket.id) || {};
@@ -624,9 +600,9 @@ io.on("connection", (socket) => {
     if (room.ladyOfLakeUsed.includes(targetPlayerId)) return;
 
     const targetPlayer = room.players.find(p => p.id === targetPlayerId);
-    if (!targetPlayer) return;
+    if (!targetPlayer?.role || !ROLES[targetPlayer.role]) return;
 
-    let loyalty: 'good' | 'evil' = ROLES[targetPlayer.role!].team;
+    let loyalty: 'good' | 'evil' = ROLES[targetPlayer.role].team;
     
     // Lancelot loyalty check
     if (targetPlayer.role === 'lancelot_good') loyalty = room.lancelotLoyalty!.lancelotGoodTeam;
@@ -639,37 +615,6 @@ io.on("connection", (socket) => {
     room.ladyOfLakePhase = false;
 
     advanceToNextMission(room);
-
-    broadcastRoom(room);
-  });
-
-  socket.on("reveal-mission", ({ roomCode }) => {
-    // Deprecated but kept for compatibility
-    const room = rooms.get(roomCode);
-    if (!room || socket.id !== room.hostId) return;
-
-    if (Object.keys(room.missionVotes).length < room.proposedTeam.length) return;
-
-    const votes = Object.values(room.missionVotes);
-    const fails = votes.filter(v => v === 'fail').length;
-    const mission = room.missions[room.currentMissionIndex];
-    
-    const playerCount = room.players.length;
-    const failsNeeded = needsTwoFails(room.currentMissionIndex, playerCount) ? 2 : 1;
-    const passed = fails < failsNeeded;
-
-    if (passed) {
-      mission.status = 'success';
-    } else {
-      mission.status = 'fail';
-    }
-    mission.votes = [...votes].sort(() => Math.random() - 0.5);
-
-    room.lastMissionVoteResult = {
-      votes: mission.votes,
-      passed
-    };
-    room.phase = 'mission-result';
 
     broadcastRoom(room);
   });
@@ -966,9 +911,9 @@ function advanceToNextMission(room: Room) {
   room.excaliburTarget = null;
   room.excaliburReveal = null;
 
-  // Loyalty swap check
+  // Loyalty swap check — rodadas decorridas = missões resolvidas (vale com e sem targeting)
   if (room.lancelotConfig) {
-    handleLoyaltySwap(room, room.targetingEnabled ? completedMissions : room.currentMissionIndex);
+    handleLoyaltySwap(room, completedMissions);
   }
 }
 
@@ -1041,12 +986,12 @@ function saveMatchHistory(room: Room) {
     timestamp: new Date().toISOString(),
     playerCount: room.players.length,
     players: room.players.map(p => {
-      let team = ROLES[p.role!].team;
-      if (p.role === 'lancelot_good') team = room.lancelotLoyalty!.lancelotGoodTeam;
-      if (p.role === 'lancelot_evil') team = room.lancelotLoyalty!.lancelotEvilTeam;
+      let team: 'good' | 'evil' = p.role && ROLES[p.role] ? ROLES[p.role].team : 'good';
+      if (p.role === 'lancelot_good' && room.lancelotLoyalty) team = room.lancelotLoyalty.lancelotGoodTeam;
+      if (p.role === 'lancelot_evil' && room.lancelotLoyalty) team = room.lancelotLoyalty.lancelotEvilTeam;
       return {
         name: p.name,
-        role: p.role!,
+        role: p.role ?? 'unknown',
         team
       };
     }),

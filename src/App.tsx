@@ -129,15 +129,6 @@ type GamePhase =
   | 'assassination'
   | 'game-over';
 
-const LANCELOT_CONFIGS = {
-  'var1': { variant: 'var1', deckSize: 3, deckRevealed: false, startsAt: 3, mandatory: false, recognition: false },
-  'var2': { variant: 'var2', deckSize: 5, deckRevealed: true, startsAt: 1, mandatory: true, recognition: false },
-  'var3': { variant: 'var3', deckSize: 0, deckRevealed: false, startsAt: 0, mandatory: false, recognition: true },
-  'var1_var2': { variant: 'var1_var2', deckSize: 5, deckRevealed: false, startsAt: 1, mandatory: true, recognition: false },
-  'var1_var3': { variant: 'var1_var3', deckSize: 3, deckRevealed: false, startsAt: 3, mandatory: false, recognition: true },
-  'var2_var3': { variant: 'var2_var3', deckSize: 5, deckRevealed: true, startsAt: 1, mandatory: true, recognition: true },
-} as const;
-
 interface TeamVoteResult {
   votes: Record<string, 'approve' | 'reject'>;
   passed: boolean;
@@ -1224,11 +1215,10 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
 
   const handleStart = () => {
     if (playerCount < 5) return alert(t('app.minPlayers'));
-    const lancelotConfig = lancelotConfigId === 'none' ? null : { id: lancelotConfigId, ...LANCELOT_CONFIGS[lancelotConfigId as keyof typeof LANCELOT_CONFIGS] };
-    socket.emit('start-game', { 
-      roomCode: room.code, 
-      selectedRoles, 
-      lancelotConfig,
+    socket.emit('start-game', {
+      roomCode: room.code,
+      selectedRoles,
+      lancelotConfigId: lancelotConfigId === 'none' ? null : lancelotConfigId,
       ladyOfLakeEnabled,
       excaliburEnabled,
       targetingEnabled
@@ -1241,7 +1231,7 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
     if (targetIndex < 0 || targetIndex >= newPlayers.length) return;
     
     [newPlayers[index], newPlayers[targetIndex]] = [newPlayers[targetIndex], newPlayers[index]];
-    socket.emit('reorder-players', { roomCode: room.code, players: newPlayers });
+    socket.emit('reorder-players', { roomCode: room.code, playerIds: newPlayers.map(p => p.id) });
   };
 
   const setFirstLeader = (playerId: string) => {

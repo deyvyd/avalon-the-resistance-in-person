@@ -59,7 +59,7 @@ describe('sanitização de estado por jogador', () => {
     h = await Harness.create(5);
     await h.startGame({
       selectedRoles: ['lancelot_good', 'lancelot_evil'],
-      lancelotConfig: { id: 'var1', variant: 'var1', deckSize: 5, deckRevealed: false, startsAt: 3, mandatory: false, recognition: false },
+      lancelotConfigId: 'var1',
     });
     for (const viewer of h.clients) {
       expect(viewer.room.loyaltyDeck).toBeUndefined();

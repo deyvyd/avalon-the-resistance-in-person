@@ -141,15 +141,15 @@ export class Harness {
   /** lobby → team-proposal (start, reveal, narração) */
   async startGame(options: Partial<{
     selectedRoles: string[];
-    lancelotConfig: any;
+    lancelotConfigId: string | null;
     ladyOfLakeEnabled: boolean;
     excaliburEnabled: boolean;
     targetingEnabled: boolean;
-  }> = {}) {
+  }> & Record<string, any> = {}) {
     this.host.socket.emit('start-game', {
       roomCode: this.code,
       selectedRoles: [],
-      lancelotConfig: null,
+      lancelotConfigId: null,
       ladyOfLakeEnabled: false,
       excaliburEnabled: false,
       targetingEnabled: false,
