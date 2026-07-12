@@ -119,12 +119,18 @@ export const LANCELOT_CONFIGS: Record<string, LancelotConfig> = {
   var2_var3: { variant: 'var2_var3', deckSize: 7, deckRevealed: true, startsAt: 1, mandatory: true, recognition: true },
 };
 
+// Regra da adaptação: todo baralho de lealdade tem exatamente 2 cartas de troca
 export function generateLoyaltyDeck(deckSize: number): ('none' | 'switch')[] {
-  if (deckSize === 0) return [];
+  if (deckSize < 2) return [];
   const deck: ('none' | 'switch')[] = Array(deckSize).fill('none');
   deck[0] = 'switch';
   deck[1] = 'switch';
-  return deck.sort(() => Math.random() - 0.5);
+  // Fisher-Yates (sort com comparador aleatório é enviesado)
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
 }
 
 export const TEAM_DISTRIBUTION: Record<number, { good: number; evil: number }> = {
