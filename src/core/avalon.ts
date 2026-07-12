@@ -119,18 +119,23 @@ export const LANCELOT_CONFIGS: Record<string, LancelotConfig> = {
   var2_var3: { variant: 'var2_var3', deckSize: 7, deckRevealed: true, startsAt: 1, mandatory: true, recognition: true },
 };
 
+// Fisher-Yates — sort() com comparador aleatório é enviesado
+export function shuffle<T>(items: T[]): T[] {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 // Regra da adaptação: todo baralho de lealdade tem exatamente 2 cartas de troca
 export function generateLoyaltyDeck(deckSize: number): ('none' | 'switch')[] {
   if (deckSize < 2) return [];
   const deck: ('none' | 'switch')[] = Array(deckSize).fill('none');
   deck[0] = 'switch';
   deck[1] = 'switch';
-  // Fisher-Yates (sort com comparador aleatório é enviesado)
-  for (let i = deck.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [deck[i], deck[j]] = [deck[j], deck[i]];
-  }
-  return deck;
+  return shuffle(deck);
 }
 
 export const TEAM_DISTRIBUTION: Record<number, { good: number; evil: number }> = {
@@ -182,8 +187,7 @@ export function assignRoles(playerIds: string[], selectedOptionalRoles: string[]
     rolesToAssign.push('minion');
   }
 
-  // Shuffle roles
-  const shuffledRoles = [...rolesToAssign].sort(() => Math.random() - 0.5);
+  const shuffledRoles = shuffle(rolesToAssign);
   const assignments: Record<string, string> = {};
 
   playerIds.forEach((id, index) => {
