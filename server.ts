@@ -177,7 +177,10 @@ io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
   socket.on("create-room", ({ playerName, playerId }) => {
-    const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    let roomCode: string;
+    do {
+      roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    } while (rooms.has(roomCode)); // colisão sobrescreveria sala ativa
     const sessionToken = crypto.randomUUID();
     const room: Room = {
       code: roomCode,
@@ -308,6 +311,20 @@ io.on("connection", (socket) => {
     const room = rooms.get(roomCode);
     const { playerId } = socketToPlayer.get(socket.id) || {};
     if (!room || playerId !== room.hostId) return;
+    // Só do lobby (re-emissão mid-game corromperia a partida) e com contagem
+    // válida — assignRoles/MISSION_SIZES lançam fora de 5-10 e derrubariam o processo
+    if (room.phase !== 'lobby') return;
+    if (room.players.length < 5 || room.players.length > 10) return;
+
+    // Só papéis opcionais, sem duplicatas, cabendo na distribuição do time
+    // (senão assignRoles estoura e deixa jogador sem papel)
+    const OPTIONAL_ROLES = new Set(['percival', 'morgana', 'mordred', 'oberon', 'lancelot_good', 'lancelot_evil']);
+    if (!Array.isArray(selectedRoles) || !selectedRoles.every((r: string) => OPTIONAL_ROLES.has(r))) return;
+    if (new Set(selectedRoles).size !== selectedRoles.length) return;
+    const dist = TEAM_DISTRIBUTION[room.players.length];
+    const optGood = selectedRoles.filter((r: string) => ROLES[r].team === 'good').length;
+    const optEvil = selectedRoles.filter((r: string) => ROLES[r].team === 'evil').length;
+    if (optGood > dist.good - 1 || optEvil > dist.evil - 1) return; // -1: Merlin/Assassino
 
     // Config do Lancelot resolvida no servidor — cliente envia só o id da variante
     const lancelotConfig: LancelotConfig | null =
