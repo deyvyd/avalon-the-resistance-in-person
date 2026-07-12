@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, createContext, useContext, ReactNode, useRef } from 'react';
+import React, { useState, useEffect, createContext, useContext, ReactNode, useRef, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
 import { motion, AnimatePresence } from 'motion/react';
@@ -45,8 +45,9 @@ import {
   Book
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { GameGuide } from './components/GameGuide';
-import { GameManual } from './components/GameManual';
+// Manuais são texto estático grande — só baixa o chunk quando o jogador abre
+const GameGuide = lazy(() => import('./components/GameGuide').then(m => ({ default: m.GameGuide })));
+const GameManual = lazy(() => import('./components/GameManual').then(m => ({ default: m.GameManual })));
 import {
   ROLES,
   MISSION_SIZES,
@@ -830,15 +831,22 @@ const Room = () => {
       if (code === 'ROOM_NOT_FOUND') navigate('/');
     };
 
+    const requestRoomInfo = () => {
+      socket.emit('get-room-info', { roomCode: code?.toUpperCase(), playerId: getPersistentId(), sessionToken: getSessionToken() });
+    };
+
     socket.on('room-updated', handleRoomUpdate);
     socket.on('error', handleError);
+    // Reconexão (wifi caiu, app voltou do background): sem isso o cliente
+    // fica preso no último estado conhecido até a página ser recarregada
+    socket.on('connect', requestRoomInfo);
 
-    // Solicitar informações da sala ao entrar
-    socket.emit('get-room-info', { roomCode: code?.toUpperCase(), playerId: getPersistentId(), sessionToken: getSessionToken() });
-    
+    requestRoomInfo();
+
     return () => {
       socket.off('room-updated', handleRoomUpdate);
       socket.off('error', handleError);
+      socket.off('connect', requestRoomInfo);
     };
   }, [socket, navigate, code]);
 
@@ -1673,8 +1681,16 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
         </button>
       </div>
 
-      <GameGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
-      <GameManual isOpen={showManual} onClose={() => setShowManual(false)} />
+      {showGuide && (
+        <Suspense fallback={null}>
+          <GameGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
+        </Suspense>
+      )}
+      {showManual && (
+        <Suspense fallback={null}>
+          <GameManual isOpen={showManual} onClose={() => setShowManual(false)} />
+        </Suspense>
+      )}
     </motion.div>
   );
 };
