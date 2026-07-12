@@ -64,6 +64,75 @@ describe('baralho de lealdade (regras da adaptação)', () => {
   });
 });
 
+describe('guards do start-game', () => {
+  it('start-game no meio da partida é ignorado (não re-sorteia papéis)', async () => {
+    h = await Harness.create(5);
+    await h.startGame();
+    const rolesBefore = h.clients.map(c => h.roleOf(c));
+    const phaseBefore = h.room.phase;
+
+    h.host.socket.emit('start-game', {
+      roomCode: h.code,
+      selectedRoles: [],
+      lancelotConfigId: null,
+      ladyOfLakeEnabled: false,
+      excaliburEnabled: false,
+      targetingEnabled: false,
+    });
+    await new Promise(r => setTimeout(r, 300));
+
+    expect(h.room.phase).toBe(phaseBefore);
+    expect(h.clients.map(c => h.roleOf(c))).toEqual(rolesBefore);
+  });
+
+  it('start-game com menos de 5 jogadores é ignorado e não derruba o servidor', async () => {
+    h = await Harness.create(3);
+    h.host.socket.emit('start-game', {
+      roomCode: h.code,
+      selectedRoles: [],
+      lancelotConfigId: null,
+      ladyOfLakeEnabled: false,
+      excaliburEnabled: false,
+      targetingEnabled: false,
+    });
+    await new Promise(r => setTimeout(r, 300));
+    expect(h.room.phase).toBe('lobby');
+
+    // servidor continua vivo: outra sala funciona normalmente
+    const h2 = await Harness.create(5);
+    await h2.startGame();
+    expect(h2.room.phase).toBe('team-proposal');
+    await h2.destroy();
+  });
+
+  it('selectedRoles inválido (duplicado, mandatório ou além da distribuição) é ignorado', async () => {
+    h = await Harness.create(5);
+    for (const bad of [
+      ['percival', 'percival'],          // duplicado
+      ['merlin'],                        // mandatório não é opcional
+      ['servant'],                       // genérico não é opcional
+      ['morgana', 'mordred'],            // 2 opcionais do mal, mas 5p só tem 1 vaga além do Assassino
+      ['papel-inexistente'],
+      'nao-e-array',
+    ]) {
+      h.host.socket.emit('start-game', {
+        roomCode: h.code,
+        selectedRoles: bad,
+        lancelotConfigId: null,
+        ladyOfLakeEnabled: false,
+        excaliburEnabled: false,
+        targetingEnabled: false,
+      });
+    }
+    await new Promise(r => setTimeout(r, 300));
+    expect(h.room.phase).toBe('lobby');
+
+    // e um start válido continua funcionando depois das tentativas
+    await h.startGame({ selectedRoles: ['percival', 'morgana'] });
+    expect(h.room.phase).toBe('team-proposal');
+  });
+});
+
 describe('reordenação de jogadores', () => {
   it('host reordena por ids e a ordem muda', async () => {
     h = await Harness.create(5);
