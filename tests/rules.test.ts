@@ -133,6 +133,67 @@ describe('guards do start-game', () => {
   });
 });
 
+describe('guards do assign-excalibur (fix C)', () => {
+  it('líder não pode atribuir Excalibur a si mesmo', async () => {
+    h = await Harness.create(5);
+    await h.startGame({ excaliburEnabled: true });
+    h.leader().socket.emit('assign-excalibur', { roomCode: h.code, targetPlayerId: h.leader().playerId });
+    await new Promise(r => setTimeout(r, 300));
+    expect(h.room.excaliburHolder).toBeNull();
+  });
+
+  it('não-líder não atribui Excalibur', async () => {
+    h = await Harness.create(5);
+    await h.startGame({ excaliburEnabled: true });
+    const notLeader = h.clients.find(c => c !== h.leader())!;
+    const target = h.clients.find(c => c !== h.leader() && c !== notLeader)!;
+    notLeader.socket.emit('assign-excalibur', { roomCode: h.code, targetPlayerId: target.playerId });
+    await new Promise(r => setTimeout(r, 300));
+    expect(h.room.excaliburHolder).toBeNull();
+  });
+
+  it('atribuição fora de team-proposal é ignorada', async () => {
+    h = await Harness.create(5);
+    await h.startGame({ excaliburEnabled: true });
+    await h.proposeAndApprove(h.currentTeam(0));
+    const target = h.clients.find(c => c !== h.leader())!;
+    h.leader().socket.emit('assign-excalibur', { roomCode: h.code, targetPlayerId: target.playerId });
+    await new Promise(r => setTimeout(r, 300));
+    expect(h.room.excaliburHolder).toBeNull();
+  });
+});
+
+describe('leave-room no meio da partida (fix D)', () => {
+  it('sair durante a partida marca offline em vez de remover', async () => {
+    h = await Harness.create(5);
+    await h.startGame();
+    const leaving = h.clients[2];
+    const countBefore = h.room.players.length;
+    const leaderIndexBefore = h.room.currentLeaderIndex;
+
+    leaving.socket.emit('leave-room', { roomCode: h.code });
+    await h.waitFor(
+      () => h.room.players.find((p: any) => p.id === leaving.playerId)?.socketId === '',
+      'jogador marcado offline'
+    );
+
+    expect(h.room.players).toHaveLength(countBefore);
+    const player = h.room.players.find((p: any) => p.id === leaving.playerId);
+    expect(player).toBeDefined();
+    expect(player.socketId).toBe('');
+    expect(h.room.currentLeaderIndex).toBe(leaderIndexBefore);
+    expect(h.room.missions[0].size).toBe(h.room.missions[0].size); // dimensionamento intacto p/ 5 jogadores
+  });
+
+  it('sair no lobby continua removendo o jogador', async () => {
+    h = await Harness.create(5);
+    const leaving = h.clients[1];
+    leaving.socket.emit('leave-room', { roomCode: h.code });
+    await h.waitFor(() => h.room.players.length === 4, 'jogador removido');
+    expect(h.room.players.some((p: any) => p.id === leaving.playerId)).toBe(false);
+  });
+});
+
 describe('reordenação de jogadores', () => {
   it('host reordena por ids e a ordem muda', async () => {
     h = await Harness.create(5);

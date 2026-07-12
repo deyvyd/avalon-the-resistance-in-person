@@ -9,7 +9,7 @@ import { Server } from "socket.io";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
-import { generateNarrationSequence, Roles, LANCELOT_CONFIGS, generateLoyaltyDeck, shuffle } from "./src/core/avalon.ts";
+import { LANCELOT_CONFIGS, generateLoyaltyDeck, shuffle } from "./src/core/avalon.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -42,7 +42,6 @@ interface Mission {
   status: 'pending' | 'success' | 'fail';
   votes: ('success' | 'fail')[];
   team: string[];
-  rejectionsBefore: number;
 }
 
 interface LancelotConfig {
@@ -385,7 +384,6 @@ io.on("connection", (socket) => {
       status: 'pending',
       votes: [],
       team: [],
-      rejectionsBefore: 0,
     }));
 
     if (room.firstLeaderId) {
@@ -446,7 +444,7 @@ io.on("connection", (socket) => {
   socket.on("confirm-character", ({ roomCode }) => {
     const room = rooms.get(roomCode);
     const { playerId } = socketToPlayer.get(socket.id) || {};
-    if (!room || !playerId) return;
+    if (!room || !playerId || room.phase !== 'character-reveal') return;
     const player = room.players.find(p => p.id === playerId);
     if (player) player.isConfirmed = true;
 
@@ -454,26 +452,6 @@ io.on("connection", (socket) => {
       room.phase = 'narration';
     }
     broadcastRoom(room);
-  });
-
-  socket.on("start-narration", ({ roomCode }) => {
-    const room = rooms.get(roomCode);
-    const { playerId } = socketToPlayer.get(socket.id) || {};
-    if (!room || playerId !== room.hostId) return;
-
-    const roles: Roles = {
-      merlin: true,
-      assassin: true,
-      percival: room.selectedRoles.includes('percival'),
-      morgana: room.selectedRoles.includes('morgana'),
-      mordred: room.selectedRoles.includes('mordred'),
-      oberon: room.selectedRoles.includes('oberon'),
-      lancelotGood: room.selectedRoles.includes('lancelot_good'),
-      lancelotEvil: room.selectedRoles.includes('lancelot_evil'),
-    };
-
-    const sequence = generateNarrationSequence(roles, room.lancelotConfig, room.players.length);
-    io.to(roomCode).emit("narration-started", { sequence });
   });
 
   socket.on("narration-ended", ({ roomCode }) => {
@@ -514,8 +492,12 @@ io.on("connection", (socket) => {
   socket.on("assign-excalibur", ({ roomCode, targetPlayerId }) => {
     const room = rooms.get(roomCode);
     const { playerId } = socketToPlayer.get(socket.id) || {};
-    if (!room || playerId !== room.players[room.currentLeaderIndex].id) return;
-    
+    if (!room || room.phase !== 'team-proposal' || !room.excaliburEnabled) return;
+    if (playerId !== room.players[room.currentLeaderIndex]?.id) return;
+    // Líder não pode manter a Excalibur consigo
+    if (targetPlayerId === playerId) return;
+    if (!room.players.some(p => p.id === targetPlayerId)) return;
+
     room.excaliburHolder = targetPlayerId;
     broadcastRoom(room);
   });
@@ -591,7 +573,7 @@ io.on("connection", (socket) => {
       if (room.excaliburEnabled && room.excaliburHolder && !room.excaliburUsed) {
         room.phase = 'excalibur-usage';
       } else {
-        processMissionResult(room, roomCode);
+        processMissionResult(room);
       }
     }
 
@@ -613,7 +595,7 @@ io.on("connection", (socket) => {
     // Swap the vote
     room.missionVotes[targetPlayerId] = originalVote === 'success' ? 'fail' : 'success';
 
-    processMissionResult(room, roomCode);
+    processMissionResult(room);
     broadcastRoom(room);
   });
 
@@ -623,7 +605,7 @@ io.on("connection", (socket) => {
     if (!room || playerId !== room.excaliburHolder || room.excaliburUsed) return;
 
     room.excaliburUsed = true;
-    processMissionResult(room, roomCode);
+    processMissionResult(room);
     broadcastRoom(room);
   });
 
@@ -729,10 +711,19 @@ io.on("connection", (socket) => {
     const { playerId } = socketToPlayer.get(socket.id) || {};
     if (!room || !playerId) return;
 
-    room.players = room.players.filter(p => p.id !== playerId);
     socket.leave(roomCode);
     socketToPlayer.delete(socket.id);
 
+    // Partida em andamento: remover quebraria índices de líder e tamanhos de
+    // missão já fixados para N jogadores — trata como desconexão (fica offline)
+    if (room.phase !== 'lobby') {
+      const player = room.players.find(p => p.id === playerId);
+      if (player) player.socketId = "";
+      broadcastRoom(room);
+      return;
+    }
+
+    room.players = room.players.filter(p => p.id !== playerId);
     if (room.players.length === 0) {
       rooms.delete(roomCode);
     } else {
@@ -900,7 +891,7 @@ function broadcastRoom(room: Room) {
   }
 }
 
-function processMissionResult(room: Room, roomCode: string) {
+function processMissionResult(room: Room) {
   const votes = Object.values(room.missionVotes);
   const fails = votes.filter(v => v === 'fail').length;
   const mission = room.missions[room.currentMissionIndex];

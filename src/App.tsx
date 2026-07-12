@@ -338,9 +338,9 @@ const SettingsProvider = ({ children }: { children: ReactNode }) => {
             onClose={() => {
               // Restore from localStorage on close without saving
               const saved = localStorage.getItem('avalonSettings');
-              if (saved) {
-                setSettings(JSON.parse(saved));
-              } else {
+              try {
+                setSettings(saved ? JSON.parse(saved) : DEFAULT_SETTINGS);
+              } catch {
                 setSettings(DEFAULT_SETTINGS);
               }
               setShowSettings(false);
