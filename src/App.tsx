@@ -86,17 +86,20 @@ const DEFAULT_SETTINGS: AvalonSettings = {
 };
 
 const getPersistentId = () => {
-  let id = sessionStorage.getItem('avalon_player_id');
+  // localStorage: identidade sobrevive a nova aba / fechamento do browser
+  // (migra ids antigos que estavam em sessionStorage)
+  let id = localStorage.getItem('avalon_player_id') ?? sessionStorage.getItem('avalon_player_id');
   if (!id) {
     id = Math.random().toString(36).substring(2, 15);
-    sessionStorage.setItem('avalon_player_id', id);
   }
+  localStorage.setItem('avalon_player_id', id);
   return id;
 };
 
-const getSessionToken = () => sessionStorage.getItem('avalon_session_token');
+const getSessionToken = () =>
+  localStorage.getItem('avalon_session_token') ?? sessionStorage.getItem('avalon_session_token');
 const setSessionToken = (token: string | undefined) => {
-  if (token) sessionStorage.setItem('avalon_session_token', token);
+  if (token) localStorage.setItem('avalon_session_token', token);
 };
 
 interface Player {
@@ -760,6 +763,8 @@ const Home = () => {
             <div className="pt-8 opacity-40 hover:opacity-100 transition-opacity">
               <button 
                 onClick={() => {
+                  localStorage.removeItem('avalon_player_id');
+                  localStorage.removeItem('avalon_session_token');
                   sessionStorage.removeItem('avalon_player_id');
                   sessionStorage.removeItem('avalon_session_token');
                   window.location.reload();
@@ -1259,7 +1264,6 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
         }}
         initialConfig={lancelotConfigId === 'none' ? null : lancelotConfigId}
       />
-      <GameGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
       <div className="text-center space-y-2">
         <div className="flex justify-between items-center px-4">
           <div className="w-10"></div>
@@ -1300,7 +1304,7 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${p.id === room.hostId ? 'bg-[#ffd700]' : 'bg-green-500'}`}></div>
                 <span className="truncate font-bold">
                   {p.name}
-                  {p.id === socket.id && <span className="font-normal text-blue-300 ml-1">{t('app.me')}</span>}
+                  {p.id === getPersistentId() && <span className="font-normal text-blue-300 ml-1">{t('app.me')}</span>}
                 </span>
                 {room.firstLeaderId === p.id && <Crown size={14} className="text-[#ffd700] flex-shrink-0" />}
               </div>
@@ -1942,7 +1946,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
   const { t } = useTranslation();
   const socket = useSocket();
   const { showSettings } = useSettings();
-  const playerId = sessionStorage.getItem('avalon_player_id');
+  const playerId = getPersistentId();
   const currentMission = room.missions[room.currentMissionIndex];
   const leader = room.players[room.currentLeaderIndex];
   const isLeader = playerId === leader.id;
@@ -2341,12 +2345,14 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
                 <p className="text-sm font-bold">{t('app.game.excaliburChoosePlayer')}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {room.proposedTeam.map(id => (
-                    <Button 
-                      variant="outline" 
+                    <div key={id}>
+                    <Button
+                      variant="outline"
                       onClick={() => socket.emit('use-excalibur', { roomCode: room.code, targetPlayerId: id })}
                     >
                       {room.players.find(p => p.id === id)?.name}
                     </Button>
+                    </div>
                   ))}
                 </div>
                 <Button variant="secondary" onClick={() => socket.emit('skip-excalibur', { roomCode: room.code })}>{t('app.game.skipUse')}</Button>
@@ -2430,12 +2436,14 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
                 <p className="text-sm font-bold">{t('app.game.ladyChoosePlayer')}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {room.players.filter(p => p.id !== playerId && !room.ladyOfLakeUsed.includes(p.id)).map(p => (
-                    <Button 
-                      variant="outline" 
+                    <div key={p.id}>
+                    <Button
+                      variant="outline"
                       onClick={() => socket.emit('lady-examine', { roomCode: room.code, targetPlayerId: p.id })}
                     >
                       {p.name}
                     </Button>
+                    </div>
                   ))}
                 </div>
               </div>

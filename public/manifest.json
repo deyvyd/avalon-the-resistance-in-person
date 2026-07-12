@@ -2,20 +2,16 @@
   "name": "Avalon: A Resistência",
   "short_name": "Avalon",
   "description": "Jogo de tabuleiro digital presencial",
-  "start_url": "/",
+  "start_url": "/avalon/",
   "display": "standalone",
   "background_color": "#0d1b2a",
   "theme_color": "#ffd700",
   "icons": [
     {
-      "src": "https://picsum.photos/seed/avalon/192/192",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "https://picsum.photos/seed/avalon/512/512",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "/avalon/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }

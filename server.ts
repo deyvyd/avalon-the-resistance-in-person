@@ -17,8 +17,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
+  // Cliente é servido pelo mesmo servidor (same-origin); origens extras só via env
   cors: {
-    origin: "*",
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : false,
     methods: ["GET", "POST"],
   },
   path: '/avalon/socket.io',
@@ -118,6 +119,7 @@ interface Room {
   winner?: 'good' | 'evil';
   gameOverReason?: string;
   createdAt: Date;
+  lastActivityAt: Date;
   // New fields
   lancelotConfig: LancelotConfig | null;
   loyaltyDeck: ('none' | 'switch')[];
@@ -146,11 +148,11 @@ interface Room {
 const rooms = new Map<string, Room>();
 const socketToPlayer = new Map<string, { roomCode: string, playerId: string }>();
 
-// Cleanup old rooms
+// Remove salas sem atividade há 4h (não por idade — partidas longas sobrevivem)
 setInterval(() => {
-  const now = new Date();
+  const now = Date.now();
   for (const [code, room] of rooms.entries()) {
-    if (now.getTime() - room.createdAt.getTime() > 4 * 60 * 60 * 1000) {
+    if (now - room.lastActivityAt.getTime() > 4 * 60 * 60 * 1000) {
       rooms.delete(code);
     }
   }
@@ -176,6 +178,7 @@ io.on("connection", (socket) => {
       teamVotes: {},
       missionVotes: {},
       createdAt: new Date(),
+      lastActivityAt: new Date(),
       lancelotConfig: null,
       loyaltyDeck: [],
       loyaltyDeckIndex: 0,
@@ -857,6 +860,7 @@ function serializeRoomFor(room: Room, viewerId: string | null) {
 }
 
 function broadcastRoom(room: Room) {
+  room.lastActivityAt = new Date(); // todo avanço de estado passa por aqui
   for (const p of room.players) {
     if (p.socketId) {
       io.to(p.socketId).emit('room-updated', serializeRoomFor(room, p.id));

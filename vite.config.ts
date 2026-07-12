@@ -24,14 +24,10 @@ export default defineConfig(({mode}) => {
           scope: '/avalon/',
           icons: [
             {
-              src: 'https://picsum.photos/seed/avalon/192/192',
-              sizes: '192x192',
-              type: 'image/png'
-            },
-            {
-              src: 'https://picsum.photos/seed/avalon/512/512',
-              sizes: '512x512',
-              type: 'image/png'
+              src: '/avalon/favicon.svg',
+              sizes: 'any',
+              type: 'image/svg+xml',
+              purpose: 'any'
             }
           ]
         }
