@@ -253,9 +253,9 @@ const StepCard = ({ step, index, total }: { step: GameStep; index: number; total
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
       transition={{ duration: 0.3 }}
-      className="game-step w-full p-4 rounded-xl border-l-4 bg-white/5 shadow-lg flex flex-col gap-4 relative overflow-hidden group transition-all duration-300 hover:translate-x-1 hover:shadow-[0_4px_12px_rgba(255,215,0,0.2)]"
+      className="game-step w-full p-4 rounded-xl border bg-white/5 shadow-lg flex flex-col gap-4 relative overflow-hidden group transition-all duration-300 hover:translate-x-1 hover:shadow-[0_4px_12px_rgba(255,215,0,0.2)]"
       style={{
-        borderLeftColor: colors.border,
+        borderColor: colors.border,
         background: step.type === 'optional' ? 'linear-gradient(145deg, rgba(0,195,255,0.05), rgba(0,195,255,0.02))' : undefined
       }}
     >
@@ -324,9 +324,9 @@ const StepCard = ({ step, index, total }: { step: GameStep; index: number; total
 
         {step.note && (
           <div
-            className="p-3 rounded-md border-l-4 italic flex gap-3 items-start"
+            className="p-3 rounded-md border italic flex gap-3 items-start"
             style={{
-              borderLeftColor: colors.border,
+              borderColor: colors.border,
               backgroundColor: `rgba(${parseInt(colors.border.slice(1,3), 16)}, ${parseInt(colors.border.slice(3,5), 16)}, ${parseInt(colors.border.slice(5,7), 16)}, 0.1)`
             }}
           >
@@ -490,7 +490,7 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm">
+      <div className="fixed inset-0 z-modal flex items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -527,7 +527,7 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                       lancelots ? 'border-[#ffd700] bg-[#ffd700]/10' : 'border-white/5 bg-[#1b263b] opacity-60'
                     }`}
                   >
-                    <div className={`p-2 rounded-lg ${lancelots ? 'bg-[#ffd700]/20 text-[#ffd700]' : 'bg-white/5 text-gray-500'}`}>
+                    <div className={`p-2 rounded-lg ${lancelots ? 'bg-[#ffd700]/20 text-[#ffd700]' : 'bg-white/5 text-gray-400'}`}>
                       <RefreshCw size={24} />
                     </div>
                     <div className="text-left flex-1">
@@ -591,7 +591,7 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                     excalibur ? 'border-[#ffd700] bg-[#ffd700]/10' : 'border-white/5 bg-[#1b263b] opacity-60'
                   }`}
                 >
-                  <div className={`p-2 rounded-lg ${excalibur ? 'bg-[#ffd700]/20 text-[#ffd700]' : 'bg-white/5 text-gray-500'}`}>
+                  <div className={`p-2 rounded-lg ${excalibur ? 'bg-[#ffd700]/20 text-[#ffd700]' : 'bg-white/5 text-gray-400'}`}>
                     <Sword size={24} />
                   </div>
                   <div className="text-left flex-1">
@@ -608,7 +608,7 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                     targeting ? 'border-[#ffd700] bg-[#ffd700]/10' : 'border-white/5 bg-[#1b263b] opacity-60'
                   }`}
                 >
-                  <div className={`p-2 rounded-lg ${targeting ? 'bg-[#ffd700]/20 text-[#ffd700]' : 'bg-white/5 text-gray-500'}`}>
+                  <div className={`p-2 rounded-lg ${targeting ? 'bg-[#ffd700]/20 text-[#ffd700]' : 'bg-white/5 text-gray-400'}`}>
                     <Target size={24} />
                   </div>
                   <div className="text-left flex-1">
@@ -625,7 +625,7 @@ export const GameGuide = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                     ladyOfLake ? 'border-[#ffd700] bg-[#ffd700]/10' : 'border-white/5 bg-[#1b263b] opacity-60'
                   }`}
                 >
-                  <div className={`p-2 rounded-lg ${ladyOfLake ? 'bg-[#ffd700]/20 text-[#ffd700]' : 'bg-white/5 text-gray-500'}`}>
+                  <div className={`p-2 rounded-lg ${ladyOfLake ? 'bg-[#ffd700]/20 text-[#ffd700]' : 'bg-white/5 text-gray-400'}`}>
                     <Droplets size={24} />
                   </div>
                   <div className="text-left flex-1">

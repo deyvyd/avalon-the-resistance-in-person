@@ -369,7 +369,7 @@ const SettingsModal = ({
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center">
+    <div className="fixed inset-0 z-overlay-top flex items-end md:items-center justify-center">
       <motion.div 
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
@@ -548,8 +548,8 @@ const SettingsModal = ({
             <div className="text-center space-y-2">
               <p className="font-['Cinzel'] text-[#ffd700]">The Resistance: Avalon</p>
               <p className="text-[10px] text-gray-400">{t('app.settings.originalDesign')}</p>
-              <p className="text-[10px] text-gray-500">{t('app.settings.appVersion', { version: APP_VERSION })}</p>
-              <p className="text-[10px] text-gray-500">{t('app.settings.developedFor')}</p>
+              <p className="text-[10px] text-gray-400">{t('app.settings.appVersion', { version: APP_VERSION })}</p>
+              <p className="text-[10px] text-gray-400">{t('app.settings.developedFor')}</p>
               <div className="pt-4 flex justify-center gap-4 text-xs font-bold text-[#ffd700]">
                 <button onClick={() => { onClose(); /* Trigger Manual */ window.dispatchEvent(new CustomEvent('open-manual')); }} className="hover:underline">{t('app.settings.manual')}</button>
                 <span className="text-gray-700">|</span>
@@ -583,7 +583,7 @@ const SettingsModal = ({
 
 const GameTitle = ({ small = false }: { small?: boolean }) => (
   <div className={`text-center mb-8 ${small ? 'scale-75 -mb-4' : ''}`}>
-    <div className="text-[10px] uppercase tracking-[0.3em] text-gray-500 font-bold mb-1">The Resistance</div>
+    <div className="text-[10px] uppercase tracking-[0.3em] text-gray-400 font-bold mb-1">The Resistance</div>
     <h1 className="text-5xl font-['Cinzel'] text-[#ffd700] drop-shadow-[0_0_15px_rgba(255,215,0,0.3)] tracking-widest">AVALON</h1>
   </div>
 );
@@ -669,7 +669,7 @@ const MatchHistoryView = ({ history, onBack }: { history: MatchRecord[]; onBack:
           <div key={match.id}>
             <Card className="space-y-3">
             <div className="flex justify-between items-start">
-              <div className="text-xs text-gray-500 font-mono">{new Date(match.timestamp).toLocaleString('pt-BR')}</div>
+              <div className="text-xs text-gray-400 font-mono">{new Date(match.timestamp).toLocaleString('pt-BR')}</div>
               <Badge team={match.winner}>{match.winner === 'good' ? t('app.lobby.goodWin') : t('app.lobby.evilWin')}</Badge>
             </div>
             
@@ -689,7 +689,7 @@ const MatchHistoryView = ({ history, onBack }: { history: MatchRecord[]; onBack:
                   </span>
                 ))}
               </div>
-              <div className="text-[9px] text-gray-500 uppercase tracking-widest">
+              <div className="text-[9px] text-gray-400 uppercase tracking-widest">
                 {t('app.lobby.durationLabel', { minutes: Math.floor(match.duration / 60), seconds: match.duration % 60, count: match.playerCount })}
               </div>
             </div>
@@ -757,7 +757,7 @@ const Home = () => {
 
         <div className="space-y-6">
           <div className="space-y-2 text-left">
-            <label className="text-xs uppercase tracking-widest text-gray-500 font-bold ml-2">{t('app.yourName')}</label>
+            <label className="text-xs uppercase tracking-widest text-gray-400 font-bold ml-2">{t('app.yourName')}</label>
             <input
               type="text"
               value={name}
@@ -772,7 +772,7 @@ const Home = () => {
             
             <div className="relative py-4">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
-              <div className="relative flex justify-center text-xs uppercase bg-[#0d1b2a] px-4 text-gray-500 font-bold">{t('app.joinRoomOr')}</div>
+              <div className="relative flex justify-center text-xs uppercase bg-[#0d1b2a] px-4 text-gray-400 font-bold">{t('app.joinRoomOr')}</div>
             </div>
 
             <div className="space-y-4">
@@ -868,13 +868,13 @@ const Room = () => {
       <Layout onSettingsClick={() => setShowSettings(true)}>
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8 text-center py-12">
           <div className="space-y-4">
-            <h2 className="text-sm uppercase tracking-widest text-gray-500 font-bold">{t('app.enterRoom')}</h2>
+            <h2 className="text-sm uppercase tracking-widest text-gray-400 font-bold">{t('app.enterRoom')}</h2>
             <h1 className="text-4xl font-mono font-bold text-[#ffd700]">{code}</h1>
           </div>
 
           <Card className="space-y-6">
             <div className="space-y-2 text-left">
-              <label className="text-xs uppercase tracking-widest text-gray-500 font-bold ml-2">{t('app.yourName')}</label>
+              <label className="text-xs uppercase tracking-widest text-gray-400 font-bold ml-2">{t('app.yourName')}</label>
               <input
                 type="text"
                 value={playerName}
@@ -888,7 +888,7 @@ const Room = () => {
             </Button>
           </Card>
           
-          <button onClick={() => navigate('/')} className="text-gray-500 hover:text-white transition-colors flex items-center justify-center gap-2 mx-auto">
+          <button onClick={() => navigate('/')} className="text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2 mx-auto">
             <LogOut size={16} />
             <span>{t('app.leaveRoom')}</span>
           </button>
@@ -1013,7 +1013,7 @@ const LancelotModal = ({
   const preview = PREVIEWS[configKey];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm p-0 md:p-4">
+    <div className="fixed inset-0 z-modal flex items-center justify-center bg-black/75 backdrop-blur-sm p-0 md:p-4">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1033,7 +1033,7 @@ const LancelotModal = ({
         <div className="flex-grow overflow-y-auto md:flex md:overflow-hidden">
           {/* Left: Selection */}
           <div className="p-6 space-y-4 md:w-[320px] md:border-r md:border-[#ffd700]/20 md:overflow-y-auto">
-            <h3 className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold mb-4 flex items-center gap-2">
+            <h3 className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold mb-4 flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-[#ffd700]" /> {t('app.lancelot.selectVariants')}
             </h3>
             
@@ -1073,7 +1073,7 @@ const LancelotModal = ({
 
           {/* Right: Preview */}
           <div className="p-6 bg-[#1b263b]/30 flex-grow md:overflow-y-auto">
-            <h3 className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold mb-6 flex items-center gap-2">
+            <h3 className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold mb-6 flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-[#ffd700]" /> {t('app.lancelot.previewCurrent')}
             </h3>
 
@@ -1084,7 +1084,7 @@ const LancelotModal = ({
                 </div>
                 <div className="space-y-2">
                   <p className="text-[#ffd700] font-bold uppercase tracking-widest">{t('app.lancelot.noVariantSelected')}</p>
-                  <p className="text-sm text-gray-500 max-w-[240px] mx-auto">
+                  <p className="text-sm text-gray-400 max-w-[240px] mx-auto">
                     {t('app.lancelot.noVariantHint')}
                   </p>
                 </div>
@@ -1136,7 +1136,7 @@ const LancelotModal = ({
                   </div>
 
                   {preview.avisos && (
-                    <div className="p-4 bg-red-500/15 border-l-4 border-red-600 rounded-r-xl space-y-2">
+                    <div className="p-4 bg-red-500/15 border border-red-600/40 rounded-xl space-y-2">
                       <p className="text-xs font-bold text-red-400 flex items-center gap-2">
                         <span>⚠️</span> {t('app.lancelot.warnings')}
                       </p>
@@ -1293,7 +1293,7 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
       <div className="text-center space-y-2">
         <div className="flex justify-between items-center px-4">
           <div className="w-10"></div>
-          <h2 className="text-sm uppercase tracking-widest text-gray-500 font-bold">{t('app.lobby.room')}</h2>
+          <h2 className="text-sm uppercase tracking-widest text-gray-400 font-bold">{t('app.lobby.room')}</h2>
           {room.matchHistory.length > 0 ? (
             <button onClick={() => setShowHistory(true)} className="p-2 bg-white/5 rounded-lg hover:bg-white/10 text-[#ffd700]">
               <Info size={20} />
@@ -1319,9 +1319,9 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <h3 className="font-['Cinzel'] text-xl text-[#ffd700]">{t('app.lobby.players', { count: playerCount })}</h3>
-            {isHost && <p className="text-[10px] text-gray-500 uppercase tracking-widest">{t('app.lobby.setOrderHint')}</p>}
+            {isHost && <p className="text-[10px] text-gray-400 uppercase tracking-widest">{t('app.lobby.setOrderHint')}</p>}
           </div>
-          <Users size={20} className="text-gray-500" />
+          <Users size={20} className="text-gray-400" />
         </div>
         <div className="space-y-2">
           {room.players.map((p, index) => (
@@ -1339,7 +1339,7 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
                 <div className="flex items-center gap-1">
                   <button 
                     onClick={() => setFirstLeader(p.id)}
-                    className={`p-1.5 rounded-lg transition-colors ${room.firstLeaderId === p.id ? 'bg-[#ffd700] text-[#0d1b2a]' : 'hover:bg-white/10 text-gray-500'}`}
+                    className={`p-1.5 rounded-lg transition-colors ${room.firstLeaderId === p.id ? 'bg-[#ffd700] text-[#0d1b2a]' : 'hover:bg-white/10 text-gray-400'}`}
                     title={t('app.lobby.setFirstLeaderTitle')}
                   >
                     <Crown size={16} />
@@ -1374,7 +1374,7 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-white/10 pb-2">
                 <h3 className="font-['Cinzel'] text-lg text-[#3498db] flex items-center gap-2">
-                  <Shield size={18} /> {t('app.lobby.forcesGood')} <span className="text-gray-500">{t('app.lobby.goodSlots', { count: goodSlots })}</span>
+                  <Shield size={18} /> {t('app.lobby.forcesGood')} <span className="text-gray-400">{t('app.lobby.goodSlots', { count: goodSlots })}</span>
                 </h3>
               </div>
               
@@ -1463,7 +1463,7 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-white/10 pb-2">
                 <h3 className="font-['Cinzel'] text-lg text-[#c0392b] flex items-center gap-2">
-                  <Skull size={18} /> {t('app.lobby.forcesBad')} <span className="text-gray-500">{t('app.lobby.badSlots', { count: evilSlots })}</span>
+                  <Skull size={18} /> {t('app.lobby.forcesBad')} <span className="text-gray-400">{t('app.lobby.badSlots', { count: evilSlots })}</span>
                 </h3>
               </div>
               
@@ -1556,14 +1556,14 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
                 onClick={() => setShowOptionalRules(!showOptionalRules)}
                 className="w-full flex items-center justify-between p-2 hover:bg-white/5 rounded-lg transition-colors group"
               >
-                <h3 className="text-xs uppercase tracking-widest text-gray-500 font-bold ml-2 group-hover:text-gray-300 transition-colors">{t('app.lobby.optionalRules')}</h3>
+                <h3 className="text-xs uppercase tracking-widest text-gray-400 font-bold ml-2 group-hover:text-gray-300 transition-colors">{t('app.lobby.optionalRules')}</h3>
                 <div className="flex items-center gap-2">
                   {!showOptionalRules && (ladyOfLakeEnabled || excaliburEnabled || targetingEnabled) && (
                     <span className="text-[10px] bg-[#ffd700]/20 text-[#ffd700] px-2 py-0.5 rounded-full font-bold">
                       {t('app.lobby.activeCount', { count: (ladyOfLakeEnabled ? 1 : 0) + (excaliburEnabled ? 1 : 0) + (targetingEnabled ? 1 : 0) })}
                     </span>
                   )}
-                  {showOptionalRules ? <ChevronUp size={16} className="text-gray-500" /> : <ChevronDown size={16} className="text-gray-500" />}
+                  {showOptionalRules ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
                 </div>
               </button>
               
@@ -1582,7 +1582,7 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
                         ladyOfLakeEnabled ? 'border-[#ffd700] bg-[#ffd700]/10' : 'border-white/5 bg-[#1b263b] opacity-60'
                       }`}
                     >
-                      <div className={`p-2 rounded-lg ${ladyOfLakeEnabled ? 'bg-[#ffd700]/20 text-[#ffd700]' : 'bg-white/5 text-gray-500'}`}>
+                      <div className={`p-2 rounded-lg ${ladyOfLakeEnabled ? 'bg-[#ffd700]/20 text-[#ffd700]' : 'bg-white/5 text-gray-400'}`}>
                         <Droplets size={24} />
                       </div>
                       <div className="text-left flex-1">
@@ -1599,7 +1599,7 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
                         excaliburEnabled ? 'border-[#ffd700] bg-[#ffd700]/10' : 'border-white/5 bg-[#1b263b] opacity-60'
                       }`}
                     >
-                      <div className={`p-2 rounded-lg ${excaliburEnabled ? 'bg-[#ffd700]/20 text-[#ffd700]' : 'bg-white/5 text-gray-500'}`}>
+                      <div className={`p-2 rounded-lg ${excaliburEnabled ? 'bg-[#ffd700]/20 text-[#ffd700]' : 'bg-white/5 text-gray-400'}`}>
                         <Sword size={24} />
                       </div>
                       <div className="text-left flex-1">
@@ -1616,7 +1616,7 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
                         targetingEnabled ? 'border-[#ffd700] bg-[#ffd700]/10' : 'border-white/5 bg-[#1b263b] opacity-60'
                       }`}
                     >
-                      <div className={`p-2 rounded-lg ${targetingEnabled ? 'bg-[#ffd700]/20 text-[#ffd700]' : 'bg-white/5 text-gray-500'}`}>
+                      <div className={`p-2 rounded-lg ${targetingEnabled ? 'bg-[#ffd700]/20 text-[#ffd700]' : 'bg-white/5 text-gray-400'}`}>
                         <Target size={24} />
                       </div>
                       <div className="text-left flex-1">
@@ -1649,7 +1649,7 @@ const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boolean; onL
 
       <button
         onClick={onLeave}
-        className="w-full py-3 px-4 rounded-xl border border-white/10 text-gray-500 hover:text-red-400 hover:border-red-400/30 transition-all flex items-center justify-center gap-2 text-sm font-bold uppercase tracking-widest"
+        className="w-full py-3 px-4 rounded-xl border border-white/10 text-gray-400 hover:text-red-400 hover:border-red-400/30 transition-all flex items-center justify-center gap-2 text-sm font-bold uppercase tracking-widest"
       >
         <LogOut size={16} />
         {t('app.leaveRoom')}
@@ -1901,15 +1901,15 @@ const NarrationView = ({ room, isHost }: { room: Room; isHost: boolean }) => {
               {!isPlaying && (
                 <button 
                   onClick={skipAll}
-                  className="text-gray-500 hover:text-white text-[10px] uppercase tracking-[0.2em] font-black transition-colors flex items-center gap-2"
+                  className="text-gray-400 hover:text-white text-[10px] uppercase tracking-[0.2em] font-black transition-colors flex items-center gap-2"
                 >
                   <VolumeX size={14} />
                   {t('app.narrationView.skipFullNarration')}
                 </button>
               )}
             </div>
-            <p className="text-xs text-gray-500 uppercase font-bold tracking-widest">{t('app.narrationView.step', { current: step + 1, total: sequence.length })}</p>
-            <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
+            <p className="text-xs text-gray-400 uppercase font-bold tracking-widest">{t('app.narrationView.step', { current: step + 1, total: sequence.length })}</p>
+            <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
               <Volume2 size={16} />
               <span>{isPlaying ? t('app.narrationView.playing', { file: sequence[step] }) : t('app.narrationView.readyToStart')}</span>
             </div>
@@ -1944,7 +1944,7 @@ const KnowledgeSection = ({ room, me }: { room: Room; me: Player }) => {
 
   return (
     <div className="space-y-3 mt-4 pt-4 border-t border-white/10">
-      <h3 className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{t('app.game.acquiredKnowledge')}</h3>
+      <h3 className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">{t('app.game.acquiredKnowledge')}</h3>
       <div className="grid grid-cols-1 gap-2">
         {room.knowledge.map((k, i) => (
           <div key={i} className="flex items-center justify-between p-2 bg-black/20 rounded-lg border border-white/5">
@@ -2048,7 +2048,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
       <div className="flex justify-between items-start">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <h2 className="text-xs uppercase tracking-widest text-gray-500 font-bold">{t('app.game.currentMission')}</h2>
+            <h2 className="text-xs uppercase tracking-widest text-gray-400 font-bold">{t('app.game.currentMission')}</h2>
             <button 
               onClick={onLeave}
               className="p-1 text-gray-600 hover:text-red-400 transition-colors"
@@ -2065,7 +2065,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
                   m.status === 'success' ? 'bg-blue-600 border-blue-400' :
                   m.status === 'fail' ? 'bg-red-600 border-red-400' :
                   i === room.currentMissionIndex ? 'bg-[#ffd700] text-[#0d1b2a] border-white' :
-                  'bg-white/5 border-white/10 text-gray-500'
+                  'bg-white/5 border-white/10 text-gray-400'
                 }`}
               >
                 {m.size}{needsTwoFails(i, room.players.length) ? '*' : ''}
@@ -2074,7 +2074,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
           </div>
         </div>
         <div className="text-right space-y-1">
-          <h2 className="text-xs uppercase tracking-widest text-gray-500 font-bold">{t('app.game.rejections')}</h2>
+          <h2 className="text-xs uppercase tracking-widest text-gray-400 font-bold">{t('app.game.rejections')}</h2>
           <div className="flex gap-1 justify-end">
             {[1, 2, 3, 4, 5].map(i => (
               <div key={i} className={`w-3 h-3 rounded-full ${i <= room.rejectionCount ? 'bg-red-500' : 'bg-white/10'}`}></div>
@@ -2091,7 +2091,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
               <RefreshCw size={14} className="text-purple-400" />
               <h3 className="text-[10px] uppercase tracking-widest text-purple-400 font-bold">{t('app.game.loyaltyDeck')}</h3>
             </div>
-            <span className="text-[9px] text-gray-500 font-mono">
+            <span className="text-[9px] text-gray-400 font-mono">
               {room.lancelotConfig.variant.toUpperCase()} • INÍCIO: R{room.lancelotConfig.startsAt}
             </span>
           </div>
@@ -2169,7 +2169,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
               <div className="space-y-4">
                 {room.targetingEnabled && (
                   <div className="space-y-2">
-                    <p className="text-xs uppercase tracking-widest text-gray-500 font-bold">{t('app.game.selectMissionLabel')}</p>
+                    <p className="text-xs uppercase tracking-widest text-gray-400 font-bold">{t('app.game.selectMissionLabel')}</p>
                     <div className="flex justify-center gap-2">
                       {room.missions.map((m, i) => {
                         const isAttempted = room.attemptedMissions.includes(i);
@@ -2214,7 +2214,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
 
                 {room.excaliburEnabled && !room.excaliburUsed && (
                   <div className="pt-4 border-t border-white/5 space-y-3">
-                    <p className="text-xs uppercase tracking-widest text-gray-500 font-bold">{t('app.game.excaliburAssign')}</p>
+                    <p className="text-xs uppercase tracking-widest text-gray-400 font-bold">{t('app.game.excaliburAssign')}</p>
                     <div className="grid grid-cols-2 gap-2">
                       {room.players.filter(p => p.id !== playerId).map(p => (
                         <button
@@ -2228,12 +2228,12 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
                         </button>
                       ))}
                     </div>
-                    <p className="text-[10px] text-gray-500 italic">{t('app.game.excaliburHint')}</p>
+                    <p className="text-[10px] text-gray-400 italic">{t('app.game.excaliburHint')}</p>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="py-8 animate-pulse text-gray-500 italic">{t('app.game.waitingFormation')}</div>
+              <div className="py-8 animate-pulse text-gray-400 italic">{t('app.game.waitingFormation')}</div>
             )}
           </div>
         )}
@@ -2255,7 +2255,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
               {room.hasVotedTeam ? (
                 <div className="py-8 space-y-4">
                   <p className="text-gray-400 italic">{t('app.game.youVoted')}</p>
-                  <p className="text-sm text-gray-500">{t('app.game.waitingPlayers', { voted: room.teamVotesCount, total: room.players.length })}</p>
+                  <p className="text-sm text-gray-400">{t('app.game.waitingPlayers', { voted: room.teamVotesCount, total: room.players.length })}</p>
                 </div>
               ) : (
                 <div className="flex gap-4">
@@ -2275,7 +2275,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
           <div className="space-y-6 text-center">
             <div className="space-y-2">
               <h3 className="text-2xl font-['Cinzel']">{t('app.game.onMission')}</h3>
-              <p className="text-xs text-gray-500 uppercase tracking-widest">{t('app.game.missionTeamVotes')}</p>
+              <p className="text-xs text-gray-400 uppercase tracking-widest">{t('app.game.missionTeamVotes')}</p>
               <div className="flex flex-wrap justify-center gap-1 max-w-xs mx-auto">
                 {room.players.map(p => (
                   <div key={p.id} className={`px-2 py-1 rounded text-[10px] font-bold border flex items-center gap-1 ${
@@ -2293,7 +2293,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
                 room.hasVotedMission ? (
                   <div className="py-8 space-y-4">
                     <p className="text-gray-400 italic">{t('app.game.youActed')}</p>
-                    <p className="text-sm text-gray-500">{t('app.game.waitingTeamVotes', { voted: room.missionVotesCount, total: room.proposedTeam.length })}</p>
+                    <p className="text-sm text-gray-400">{t('app.game.waitingTeamVotes', { voted: room.missionVotesCount, total: room.proposedTeam.length })}</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -2311,7 +2311,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
               ) : (
                 <div className="py-8 space-y-4">
                   <p className="text-gray-400 italic">{t('app.game.teamOnMission')}</p>
-                  <p className="text-sm text-gray-500">{t('app.game.waitingResults', { voted: room.missionVotesCount, total: room.proposedTeam.length })}</p>
+                  <p className="text-sm text-gray-400">{t('app.game.waitingResults', { voted: room.missionVotesCount, total: room.proposedTeam.length })}</p>
                 </div>
               )}
 
@@ -2409,7 +2409,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
                     {room.excaliburReveal === 'success' ? 'SUCESSO' : 'FALHA'}
                   </span>
                 </div>
-                <p className="text-[9px] text-gray-500 italic">{t('app.game.excaliburVoteInverted')}</p>
+                <p className="text-[9px] text-gray-400 italic">{t('app.game.excaliburVoteInverted')}</p>
               </div>
             )}
 
@@ -2427,7 +2427,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs text-gray-500 uppercase tracking-widest">{t('app.game.recallTeamVotes')}</p>
+              <p className="text-xs text-gray-400 uppercase tracking-widest">{t('app.game.recallTeamVotes')}</p>
               <div className="flex flex-wrap justify-center gap-1 max-w-xs mx-auto">
                 {room.players.map(p => (
                   <div key={p.id} className={`px-2 py-1 rounded text-[10px] font-bold border flex items-center gap-1 ${
@@ -2534,7 +2534,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
               <p className="text-gray-400 italic">{room.gameOverReason}</p>
               {room.assassinationTargetId && (
                 <div className="mt-4 p-4 bg-black/20 rounded-2xl border border-white/10 inline-block">
-                  <p className="text-xs uppercase tracking-widest text-gray-500 mb-2">{t('app.game.assassinTarget')}</p>
+                  <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">{t('app.game.assassinTarget')}</p>
                   <div className="flex items-center gap-3">
                     <span className="font-bold text-xl">
                       {room.players.find(p => p.id === room.assassinationTargetId) ? formatName(room.players.find(p => p.id === room.assassinationTargetId)!) : ''}
@@ -2559,7 +2559,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
             </div>
 
             <div className="space-y-4">
-              <h4 className="text-sm uppercase tracking-widest text-gray-500 font-bold">{t('app.game.finalReveal')}</h4>
+              <h4 className="text-sm uppercase tracking-widest text-gray-400 font-bold">{t('app.game.finalReveal')}</h4>
               <div className="grid grid-cols-1 gap-2">
                 {room.players.map(p => {
                   const isLancelot = p.role?.includes('lancelot');
@@ -2577,7 +2577,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
                           : 'border-white/5 opacity-30 grayscale-[0.5]'
                       }`}
                     >
-                      <span className={`font-bold ${won ? 'text-white' : 'text-gray-500'}`}>{formatName(p)}</span>
+                      <span className={`font-bold ${won ? 'text-white' : 'text-gray-400'}`}>{formatName(p)}</span>
                       <div className="flex items-center gap-2">
                         <span className={`text-xs ${won ? 'text-gray-400' : 'text-gray-600'}`}>{p.role && getRoleInfo(p.role, t).name}</span>
                         <span className={won ? '' : 'opacity-50'}>{p.role && ROLES[p.role].icon}</span>
@@ -2631,7 +2631,7 @@ const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Player; isHo
                     <div className="flex items-center gap-3">
                       <span className="text-3xl">{ROLES[me.role].icon}</span>
                       <div>
-                        <p className="text-[10px] uppercase font-bold text-gray-500">{t('app.game.yourCharacter')}</p>
+                        <p className="text-[10px] uppercase font-bold text-gray-400">{t('app.game.yourCharacter')}</p>
                         <p className="font-bold text-[#ffd700] text-lg">{getRoleInfo(me.role, t).name}</p>
                       </div>
                     </div>

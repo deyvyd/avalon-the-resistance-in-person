@@ -4,6 +4,10 @@
 @theme {
   --font-cinzel: "Cinzel", serif;
   --font-lato: "Lato", sans-serif;
+
+  --z-index-modal: 100;
+  --z-index-modal-elevated: 110;
+  --z-index-overlay-top: 200;
 }
 
 body {
@@ -47,4 +51,13 @@ h1, h2, h3, h4, h5, h6 {
 .search-highlight-temp {
   animation: search-pulse 2s ease-in-out;
   border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

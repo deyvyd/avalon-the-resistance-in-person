@@ -75,10 +75,10 @@ const highlightMatch = (text: string, query: string) => {
 
 const Box = ({ children, type }: { children: React.ReactNode; type: 'highlight' | 'warning' | 'tip' | 'evil' }) => {
   const styles = {
-    highlight: 'bg-[#4169e1]/15 border-l-4 border-[#4169e1]',
-    warning: 'bg-[#dc143c]/15 border-l-4 border-[#dc143c]',
-    tip: 'bg-[#d4af37]/15 border-l-4 border-[#d4af37]',
-    evil: 'bg-[#8b0000]/20 border-l-4 border-[#8b0000]',
+    highlight: 'bg-[#4169e1]/15 border border-[#4169e1]/40',
+    warning: 'bg-[#dc143c]/15 border border-[#dc143c]/40',
+    tip: 'bg-[#d4af37]/15 border border-[#d4af37]/40',
+    evil: 'bg-[#8b0000]/20 border border-[#8b0000]/40',
   };
 
   return (
@@ -353,7 +353,7 @@ export const GameManual = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
               <p className="text-[#c08fff]">[ROXO] "Percival, feche os olhos"</p>
               <p>"Todos abram os olhos"</p>
             </ScriptBox>
-            <p className="text-[10px] text-gray-500 italic mt-2">{t('manual.prep_revelation_note')}</p>
+            <p className="text-[10px] text-gray-400 italic mt-2">{t('manual.prep_revelation_note')}</p>
           </div>
         </div>
       )
@@ -799,7 +799,7 @@ export const GameManual = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[110] flex items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm">
+      <div className="fixed inset-0 z-modal-elevated flex items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -828,7 +828,7 @@ export const GameManual = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
 
             {/* Search Bar */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type="text"
                 placeholder={t('manual.searchPlaceholder')}
@@ -839,7 +839,7 @@ export const GameManual = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
                 >
                   <X size={16} />
                 </button>
@@ -876,7 +876,7 @@ export const GameManual = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                 ) : (
                   <div className="text-center py-12 space-y-4">
                     <Search size={48} className="mx-auto text-gray-700" />
-                    <p className="text-gray-500">
+                    <p className="text-gray-400">
                       {t('manual.noResults', { query: searchQuery })}<br />
                       <span className="text-xs">{t('manual.tryOtherTerm')}</span>
                     </p>
@@ -907,7 +907,7 @@ export const GameManual = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                       </div>
                       <ChevronDown
                         size={20}
-                        className={`text-gray-500 transition-transform duration-300 ${activeSection === section.id ? 'rotate-180 text-[#ffd700]' : ''}`}
+                        className={`text-gray-400 transition-transform duration-300 ${activeSection === section.id ? 'rotate-180 text-[#ffd700]' : ''}`}
                       />
                     </button>
 
@@ -937,7 +937,7 @@ export const GameManual = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
             <p className="text-[10px] text-[#b8956a] font-['Cinzel'] tracking-widest">
               {t('manual.footer_credit')}
             </p>
-            <p className="text-[8px] text-gray-500 mt-1">
+            <p className="text-[8px] text-gray-400 mt-1">
               {t('manual.footer_adapted')}
             </p>
           </div>
