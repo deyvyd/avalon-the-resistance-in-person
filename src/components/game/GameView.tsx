@@ -123,7 +123,9 @@ export const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Playe
                 className={`w-8 h-8 rounded-full flex items-center justify-center font-bold border-2 ${
                   m.status === 'success' ? 'bg-blue-600 border-blue-400' :
                   m.status === 'fail' ? 'bg-red-600 border-red-400' :
-                  i === room.currentMissionIndex ? 'bg-[#ffd700] text-[#0d1b2a] border-white' :
+                  // Com targeting, currentMissionIndex só é preciso após a proposta —
+                  // antes disso ainda guarda a última missão tentada
+                  i === room.currentMissionIndex && !(room.targetingEnabled && room.phase === 'team-proposal') ? 'bg-[#ffd700] text-[#0d1b2a] border-white' :
                   'bg-white/5 border-white/10 text-gray-400'
                 }`}
               >
@@ -664,7 +666,7 @@ export const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Playe
                   {t('app.game.playAgain')}
                 </Button>
               )}
-              <Button variant="secondary" onClick={() => window.location.href = '/'}>
+              <Button variant="secondary" onClick={onLeave}>
                 {t('app.game.leaveRoom')}
               </Button>
             </div>
@@ -705,7 +707,7 @@ export const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Playe
                         <p className="font-bold text-[#ffd700] text-lg">{getRoleInfo(me.role, t).name}</p>
                       </div>
                     </div>
-                    <Badge team={ROLES[me.role].team}>{ROLES[me.role].team === 'good' ? t('app.game.good') : t('app.game.evil')}</Badge>
+                    <Badge team={currentTeam}>{currentTeam === 'good' ? t('app.game.good') : t('app.game.evil')}</Badge>
                   </div>
                   
                   {me.role.includes('lancelot') && room.lancelotLoyalty && room.lancelotConfig?.variant !== 'var3' && (

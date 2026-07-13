@@ -45,16 +45,23 @@ describe('baralho de lealdade (regras da adaptação)', () => {
     expect(visible).not.toContain('hidden');
   });
 
-  it('servidor ignora objeto lancelotConfig injetado pelo cliente', async () => {
+  it('servidor ignora objeto lancelotConfig injetado pelo cliente e rejeita o start (Lancelot exige config válida)', async () => {
     h = await Harness.create(5);
-    await h.startGame({
+    h.host.socket.emit('start-game', {
+      roomCode: h.code,
       selectedRoles: ['lancelot_good', 'lancelot_evil'],
       lancelotConfigId: null,
       // tentativa de spoof com objeto arbitrário (era o comportamento antigo)
       lancelotConfig: { id: 'hack', variant: 'var2', deckSize: 50, deckRevealed: true, startsAt: 0, mandatory: false, recognition: false },
+      ladyOfLakeEnabled: false,
+      excaliburEnabled: false,
+      targetingEnabled: false,
     });
+    // Sem config válida, o servidor não inicia a partida — evita lancelotLoyalty
+    // nulo derrubando lady-examine/vote-mission mais tarde
+    await new Promise(r => setTimeout(r, 100));
+    expect(h.room.phase).toBe('lobby');
     expect(h.room.lancelotConfig).toBeNull();
-    expect(h.room.loyaltyDeckVisible).toHaveLength(0);
   });
 
   it('lancelotConfigId inválido resulta em config nula', async () => {

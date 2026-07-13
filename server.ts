@@ -165,8 +165,17 @@ function emitError(socket: { emit: (ev: string, payload: any) => void }, code: k
   socket.emit("error", { code, message: ERROR_MESSAGES[code] });
 }
 
+// Nome/id vêm de qualquer socket — sem limite, string gigante é rebroadcast
+// pra sala inteira a cada update (DoS barato)
+function isValidPlayerName(name: unknown): name is string {
+  return typeof name === 'string' && name.trim().length > 0 && name.length <= 30;
+}
+function isValidPlayerId(id: unknown): id is string {
+  return typeof id === 'string' && id.length > 0 && id.length <= 100;
+}
+
 // Remove salas sem atividade há 4h (não por idade — partidas longas sobrevivem)
-setInterval(() => {
+const roomCleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const [code, room] of rooms.entries()) {
     if (now - room.lastActivityAt.getTime() > 4 * 60 * 60 * 1000) {
@@ -174,11 +183,13 @@ setInterval(() => {
     }
   }
 }, 60 * 60 * 1000);
+roomCleanupInterval.unref(); // não mantém processo vivo (ex.: testes/shutdown)
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
   socket.on("create-room", ({ playerName, playerId }) => {
+    if (!isValidPlayerName(playerName) || !isValidPlayerId(playerId)) return;
     let roomCode: string;
     do {
       roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -245,6 +256,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("join-room", ({ roomCode, playerName, playerId, sessionToken }) => {
+    if (!isValidPlayerName(playerName) || !isValidPlayerId(playerId)) return;
     const room = rooms.get(roomCode);
     if (!room) {
       emitError(socket, "ROOM_NOT_FOUND");
@@ -305,6 +317,7 @@ io.on("connection", (socket) => {
     const room = rooms.get(roomCode);
     const { playerId } = socketToPlayer.get(socket.id) || {};
     if (!room || playerId !== room.hostId || room.phase !== 'lobby') return;
+    if (!room.players.some(p => p.id === targetPlayerId)) return;
     room.firstLeaderId = targetPlayerId;
     broadcastRoom(room);
   });
@@ -328,17 +341,27 @@ io.on("connection", (socket) => {
     const optEvil = selectedRoles.filter((r: string) => ROLES[r].team === 'evil').length;
     if (optGood > dist.good - 1 || optEvil > dist.evil - 1) return; // -1: Merlin/Assassino
 
+    // Lancelots só em par — cliente modificado poderia enviar só um e deixar
+    // lancelotLoyalty nulo, quebrando lady-examine/vote-mission mais tarde
+    const hasLancelotGood = selectedRoles.includes('lancelot_good');
+    const hasLancelotEvil = selectedRoles.includes('lancelot_evil');
+    if (hasLancelotGood !== hasLancelotEvil) return;
+
     // Config do Lancelot resolvida no servidor — cliente envia só o id da variante
     const lancelotConfig: LancelotConfig | null =
       typeof lancelotConfigId === 'string' && LANCELOT_CONFIGS[lancelotConfigId]
         ? { id: lancelotConfigId, ...LANCELOT_CONFIGS[lancelotConfigId] }
         : null;
 
+    // Com Lancelots selecionados, config válida é obrigatória (sem ela
+    // lancelotLoyalty fica null e lady-examine/vote-mission derrubam o processo)
+    if (hasLancelotGood && !lancelotConfig) return;
+
     room.selectedRoles = selectedRoles;
     room.lancelotConfig = lancelotConfig;
-    room.ladyOfLakeEnabled = ladyOfLakeEnabled;
-    room.excaliburEnabled = excaliburEnabled;
-    room.targetingEnabled = targetingEnabled;
+    room.ladyOfLakeEnabled = ladyOfLakeEnabled === true;
+    room.excaliburEnabled = excaliburEnabled === true;
+    room.targetingEnabled = targetingEnabled === true;
     room.phase = 'character-reveal';
     room.currentMatchStartedAt = new Date();
     
