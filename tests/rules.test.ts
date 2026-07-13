@@ -288,10 +288,17 @@ describe('troca de lealdade com targeting (fix 8)', () => {
     await h.waitPhase('mission-voting');
     for (const id of team) {
       const c = h.byId(id);
-      // lancelot mau com mandatory precisa jogar 'fail'; demais jogam conforme o time
+      // lancelot mau com mandatory precisa jogar 'fail'; demais jogam conforme o time.
+      // var1_var2 pode já ter trocado a lealdade na carta consumida no start-game
+      // (deckIdx 0 tem ~2/7 de chance de ser 'switch'), então checamos a lealdade
+      // ATUAL do Lancelot em vez do papel bruto — senão o voto mandatório é
+      // rejeitado pelo servidor e o teste trava esperando mission-voting completar.
       const role = h.roleOf(c);
-      const isEvilNow = ['assassin', 'minion', 'morgana', 'mordred', 'oberon', 'lancelot_evil'].includes(role);
-      c.socket.emit('vote-mission', { roomCode: h.code, vote: isEvilNow ? 'fail' : 'success' });
+      const isLancelot = role === 'lancelot_good' || role === 'lancelot_evil';
+      const currentTeam = isLancelot
+        ? (role === 'lancelot_good' ? h.room.lancelotLoyalty.lancelotGoodTeam : h.room.lancelotLoyalty.lancelotEvilTeam)
+        : (['assassin', 'minion', 'morgana', 'mordred', 'oberon'].includes(role) ? 'evil' : 'good');
+      c.socket.emit('vote-mission', { roomCode: h.code, vote: currentTeam === 'evil' ? 'fail' : 'success' });
     }
     await h.waitPhase('mission-result');
     h.host.socket.emit('continue-game', { roomCode: h.code });
