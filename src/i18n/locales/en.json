@@ -67,6 +67,10 @@
     "9-morgana": "Percival, open your eyes and behold Merlin and Morgana"
   },
   "app": {
+    "common": {
+      "cancel": "Cancel",
+      "confirm": "Confirm"
+    },
     "subtitle": "Resistance & Betrayal",
     "yourName": "Your Name",
     "createRoom": "Create New Room",

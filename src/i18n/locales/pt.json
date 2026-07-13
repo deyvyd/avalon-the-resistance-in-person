@@ -67,6 +67,10 @@
     "9-morgana": "Percival, abra os olhos e veja Merlin e Morgana"
   },
   "app": {
+    "common": {
+      "cancel": "Cancelar",
+      "confirm": "Confirmar"
+    },
     "subtitle": "Resistência & Traição",
     "yourName": "Seu Nome",
     "createRoom": "Criar Nova Sala",
