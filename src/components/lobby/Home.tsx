@@ -11,6 +11,7 @@ import { Users } from 'lucide-react';
 import { getPersistentId, getSessionToken, setSessionToken } from '../../lib/session';
 import { useSocket } from '../../context/SocketContext';
 import { useSettings } from '../../context/SettingsContext';
+import { useToast } from '../../context/ToastContext';
 import { GameTitle } from '../ui/GameTitle';
 import { Layout } from '../ui/Layout';
 import { Button } from '../ui/Button';
@@ -22,14 +23,15 @@ export const Home = () => {
   const socket = useSocket();
   const navigate = useNavigate();
   const { setShowSettings } = useSettings();
+  const toast = useToast();
 
   const handleCreate = () => {
-    if (!name) return alert(t('app.enterNameAlert'));
+    if (!name) return toast.error(t('app.enterNameAlert'));
     socket.emit('create-room', { playerName: name, playerId: getPersistentId() });
   };
 
   const handleJoin = () => {
-    if (!name || !roomCode) return alert(t('app.fillNameAndCode'));
+    if (!name || !roomCode) return toast.error(t('app.fillNameAndCode'));
     socket.emit('join-room', { roomCode: roomCode.toUpperCase(), playerName: name, playerId: getPersistentId(), sessionToken: getSessionToken(roomCode.toUpperCase()) });
   };
 
@@ -43,7 +45,7 @@ export const Home = () => {
       navigate(`/room/${roomCode}`);
     };
     const handleError = ({ code, message }: { code?: string; message: string }) =>
-      alert(code ? t(`errors.${code}`, message) : message);
+      toast.error(code ? t(`errors.${code}`, message) : message);
 
     socket.on('room-created', handleRoomCreated);
     socket.on('joined-room', handleJoined);
@@ -55,7 +57,7 @@ export const Home = () => {
       socket.off('joined-room', handleJoined);
       socket.off('error', handleError);
     };
-  }, [socket, navigate, t]);
+  }, [socket, navigate, t, toast]);
 
   return (
     <Layout showTitle={false} onSettingsClick={() => setShowSettings(true)}>

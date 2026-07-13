@@ -11,6 +11,7 @@ import { LogOut } from 'lucide-react';
 import { getPersistentId, getSessionToken, setSessionToken } from '../../lib/session';
 import { useSocket } from '../../context/SocketContext';
 import { useSettings } from '../../context/SettingsContext';
+import { useToast } from '../../context/ToastContext';
 import { Layout } from '../ui/Layout';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -29,6 +30,7 @@ export const Room = () => {
   const [playerName, setPlayerName] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const { settings, setShowSettings } = useSettings();
+  const toast = useToast();
 
   useEffect(() => {
     const handleRoomUpdate = (updatedRoom: RoomState) => {
@@ -37,7 +39,7 @@ export const Room = () => {
     };
 
     const handleError = ({ code, message }: { code?: string; message: string }) => {
-      alert(code ? t(`errors.${code}`, message) : message);
+      toast.error(code ? t(`errors.${code}`, message) : message);
       setIsJoining(false);
       if (code === 'ROOM_NOT_FOUND') navigate('/');
     };
@@ -67,10 +69,10 @@ export const Room = () => {
       socket.off('error', handleError);
       socket.off('connect', requestRoomInfo);
     };
-  }, [socket, navigate, code, t]);
+  }, [socket, navigate, code, t, toast]);
 
   const handleJoin = () => {
-    if (!playerName) return alert(t('app.enterNameAlert'));
+    if (!playerName) return toast.error(t('app.enterNameAlert'));
     setIsJoining(true);
     socket.emit('join-room', { roomCode: code?.toUpperCase(), playerName, playerId: getPersistentId(), sessionToken: getSessionToken(code?.toUpperCase() ?? '') });
   };

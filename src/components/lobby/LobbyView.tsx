@@ -33,6 +33,7 @@ import type { Room } from '../../types';
 import { getPersistentId } from '../../lib/session';
 import { useSocket } from '../../context/SocketContext';
 import { useSettings } from '../../context/SettingsContext';
+import { useToast } from '../../context/ToastContext';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { LancelotModal } from '../modals/LancelotModal';
@@ -42,6 +43,7 @@ export const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boole
   const { t } = useTranslation();
   const socket = useSocket();
   const { showSettings } = useSettings();
+  const toast = useToast();
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [lancelotConfigId, setLancelotConfigId] = useState<string>('none');
   const [ladyOfLakeEnabled, setLadyOfLakeEnabled] = useState(false);
@@ -106,7 +108,7 @@ export const LobbyView = ({ room, isHost, onLeave }: { room: Room; isHost: boole
   };
 
   const handleStart = () => {
-    if (playerCount < 5) return alert(t('app.minPlayers'));
+    if (playerCount < 5) return toast.error(t('app.minPlayers'));
     socket.emit('start-game', {
       roomCode: room.code,
       selectedRoles,

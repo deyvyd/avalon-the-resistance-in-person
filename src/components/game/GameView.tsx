@@ -23,6 +23,7 @@ import type { Room, Player } from '../../types';
 import { getPersistentId } from '../../lib/session';
 import { useSocket } from '../../context/SocketContext';
 import { useSettings } from '../../context/SettingsContext';
+import { useToast } from '../../context/ToastContext';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -32,6 +33,7 @@ export const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Playe
   const { t } = useTranslation();
   const socket = useSocket();
   const { showSettings } = useSettings();
+  const toast = useToast();
   const playerId = getPersistentId();
   const currentMission = room.missions[room.currentMissionIndex];
   const leader = room.players[room.currentLeaderIndex];
@@ -87,9 +89,9 @@ export const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Playe
 
   const handlePropose = () => {
     const missionIndex = room.targetingEnabled ? targetMissionIndex : room.currentMissionIndex;
-    if (missionIndex === null) return alert(t('app.selectMission'));
+    if (missionIndex === null) return toast.error(t('app.selectMission'));
     const missionSize = room.missions[missionIndex].size;
-    if (selectedTeam.length !== missionSize) return alert(t('app.selectExactPlayers', { count: missionSize }));
+    if (selectedTeam.length !== missionSize) return toast.error(t('app.selectExactPlayers', { count: missionSize }));
     socket.emit('propose-team', { roomCode: room.code, teamPlayerIds: selectedTeam, targetMissionIndex: missionIndex });
   };
 
