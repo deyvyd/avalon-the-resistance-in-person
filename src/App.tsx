@@ -8,6 +8,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
 import { SocketContext } from './context/SocketContext';
 import { SettingsProvider } from './context/SettingsContext';
+import { ToastProvider } from './context/ToastContext';
 import { Home } from './components/lobby/Home';
 import { Room } from './components/lobby/Room';
 
@@ -28,15 +29,17 @@ export default function App() {
 
   return (
     <SocketContext.Provider value={socket}>
-      <SettingsProvider>
-        <Router basename="/avalon">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/room/:code" element={<Room />} />
-            <Route path="*" element={<Home />} />
-          </Routes>
-        </Router>
-      </SettingsProvider>
+      <ToastProvider>
+        <SettingsProvider>
+          <Router basename="/avalon">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/room/:code" element={<Room />} />
+              <Route path="*" element={<Home />} />
+            </Routes>
+          </Router>
+        </SettingsProvider>
+      </ToastProvider>
     </SocketContext.Provider>
   );
 }
