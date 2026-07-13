@@ -52,7 +52,6 @@ import {
   ROLES,
   MISSION_SIZES,
   needsTwoFails,
-  Team,
   generateNarrationSequence,
   shouldPauseAfter,
   Roles,
@@ -64,6 +63,11 @@ import { APP_VERSION, DEFAULT_SETTINGS } from './constants';
 import { getPersistentId, getSessionToken, setSessionToken } from './lib/session';
 import { SocketContext, useSocket } from './context/SocketContext';
 import { useSettings, SettingsProvider } from './context/SettingsContext';
+import { GameTitle } from './components/ui/GameTitle';
+import { Layout } from './components/ui/Layout';
+import { Button } from './components/ui/Button';
+import { Card } from './components/ui/Card';
+import { Badge } from './components/ui/Badge';
 
 export const SettingsModal = ({
   settings,
@@ -293,76 +297,6 @@ export const SettingsModal = ({
 };
 
 // --- Components ---
-
-const GameTitle = ({ small = false }: { small?: boolean }) => (
-  <div className={`text-center mb-8 ${small ? 'scale-75 -mb-4' : ''}`}>
-    <div className="text-[10px] uppercase tracking-[0.3em] text-gray-400 font-bold mb-1">The Resistance</div>
-    <h1 className="text-5xl font-['Cinzel'] text-[#ffd700] drop-shadow-[0_0_15px_rgba(255,215,0,0.3)] tracking-widest">AVALON</h1>
-  </div>
-);
-
-const Layout = ({ children, showTitle = true, onSettingsClick }: { children: ReactNode; showTitle?: boolean; onSettingsClick?: () => void }) => (
-  <div className="min-h-screen bg-[#0d1b2a] text-white font-['Lato'] selection:bg-[#ffd700] selection:text-[#0d1b2a] pb-12">
-    <div className="max-w-md mx-auto px-4 py-8">
-      <div className="flex justify-end mb-4">
-        <button 
-          onClick={onSettingsClick}
-          className="p-2 bg-white/5 rounded-lg hover:bg-white/10 text-[#ffd700] transition-all"
-        >
-          <Settings size={24} />
-        </button>
-      </div>
-      {showTitle && <GameTitle small={!window.location.pathname.endsWith('/') && !window.location.pathname.endsWith('/room/')} />}
-      {children}
-    </div>
-  </div>
-);
-
-const Button = ({ 
-  children, 
-  onClick, 
-  variant = 'primary', 
-  disabled = false,
-  className = ''
-}: { 
-  children: ReactNode; 
-  onClick?: () => void; 
-  variant?: 'primary' | 'secondary' | 'danger' | 'outline';
-  disabled?: boolean;
-  className?: string;
-}) => {
-  const variants = {
-    primary: 'bg-[#ffd700] text-[#0d1b2a] hover:bg-[#ffed4a]',
-    secondary: 'bg-[#2a3f5f] text-white hover:bg-[#3a547a]',
-    danger: 'bg-[#c0392b] text-white hover:bg-[#e74c3c]',
-    outline: 'border-2 border-[#ffd700] text-[#ffd700] hover:bg-[#ffd700] hover:text-[#0d1b2a]'
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`w-full py-4 px-6 rounded-xl font-['Cinzel'] font-bold text-lg transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none ${variants[variant]} ${className}`}
-    >
-      {children}
-    </button>
-  );
-};
-
-const Card = ({ children, className = '' }: { children: ReactNode; className?: string }) => (
-  <div className={`bg-[#1b263b] border border-white/10 rounded-2xl p-6 shadow-xl ${className}`}>
-    {children}
-  </div>
-);
-
-const Badge = ({ children, team, variant }: { children: ReactNode; team?: Team; variant?: 'purple' }) => (
-  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-    variant === 'purple' ? 'bg-purple-600 text-white' :
-    team === 'good' ? 'bg-[#3498db] text-white' : 'bg-[#c0392b] text-white'
-  }`}>
-    {children}
-  </span>
-);
 
 // --- Pages ---
 
