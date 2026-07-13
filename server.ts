@@ -9,7 +9,10 @@ import { Server } from "socket.io";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
-import { LANCELOT_CONFIGS, generateLoyaltyDeck, shuffle } from "./src/core/avalon.ts";
+import {
+  LANCELOT_CONFIGS, generateLoyaltyDeck, shuffle,
+  TEAM_DISTRIBUTION, MISSION_SIZES, ROLES, needsTwoFails, assignRoles,
+} from "./src/core/avalon.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -486,10 +489,15 @@ io.on("connection", (socket) => {
     room.proposedTeam = teamPlayerIds;
     room.phase = 'team-voting';
     room.teamVotes = {};
+    // Regra oficial: portador da Excalibur deve ser membro da equipe da missão —
+    // se o líder mudou a equipe depois de designar, a designação cai
+    if (room.excaliburHolder && !teamPlayerIds.includes(room.excaliburHolder)) {
+      room.excaliburHolder = null;
+    }
     broadcastRoom(room);
   });
 
-  socket.on("assign-excalibur", ({ roomCode, targetPlayerId }) => {
+  socket.on("assign-excalibur", ({ roomCode, targetPlayerId, teamPlayerIds }) => {
     const room = rooms.get(roomCode);
     const { playerId } = socketToPlayer.get(socket.id) || {};
     if (!room || room.phase !== 'team-proposal' || !room.excaliburEnabled) return;
@@ -497,6 +505,8 @@ io.on("connection", (socket) => {
     // Líder não pode manter a Excalibur consigo
     if (targetPlayerId === playerId) return;
     if (!room.players.some(p => p.id === targetPlayerId)) return;
+    // Regra oficial: portador deve ser membro da equipe que o líder está montando
+    if (!Array.isArray(teamPlayerIds) || !teamPlayerIds.includes(targetPlayerId)) return;
 
     room.excaliburHolder = targetPlayerId;
     broadcastRoom(room);
@@ -787,38 +797,6 @@ io.on("connection", (socket) => {
   });
 });
 
-// Avalon game logic helper (duplicate for server context)
-const TEAM_DISTRIBUTION: Record<number, { good: number; evil: number }> = {
-  5: { good: 3, evil: 2 },
-  6: { good: 4, evil: 2 },
-  7: { good: 4, evil: 3 },
-  8: { good: 5, evil: 3 },
-  9: { good: 6, evil: 3 },
-  10: { good: 6, evil: 4 },
-};
-
-const MISSION_SIZES: Record<number, number[]> = {
-  5: [2, 3, 2, 3, 3],
-  6: [2, 3, 4, 3, 4],
-  7: [2, 3, 3, 4, 4],
-  8: [3, 4, 4, 5, 5],
-  9: [3, 4, 4, 5, 5],
-  10: [3, 4, 4, 5, 5],
-};
-
-const ROLES: Record<string, { team: 'good' | 'evil' }> = {
-  merlin: { team: 'good' },
-  assassin: { team: 'evil' },
-  servant: { team: 'good' },
-  minion: { team: 'evil' },
-  percival: { team: 'good' },
-  morgana: { team: 'evil' },
-  mordred: { team: 'evil' },
-  oberon: { team: 'evil' },
-  lancelot_good: { team: 'good' },
-  lancelot_evil: { team: 'evil' },
-};
-
 interface KnowledgeItem {
   playerId: string;
   hint: 'evil' | 'maybe-merlin' | 'lancelot';
@@ -1037,44 +1015,6 @@ function saveMatchHistory(room: Room) {
   };
   room.matchHistory.unshift(match);
   if (room.matchHistory.length > 10) room.matchHistory.pop();
-}
-
-function needsTwoFails(missionIndex: number, playerCount: number): boolean {
-  return missionIndex === 3 && playerCount >= 7;
-}
-
-function assignRoles(playerIds: string[], selectedOptionalRoles: string[]): Record<string, string> {
-  const playerCount = playerIds.length;
-  const distribution = TEAM_DISTRIBUTION[playerCount];
-  if (!distribution) throw new Error('Número de jogadores inválido');
-
-  const rolesToAssign: string[] = [];
-  rolesToAssign.push('merlin');
-  rolesToAssign.push('assassin');
-  
-  // Handle Lancelots separately if selected
-  const useLancelots = selectedOptionalRoles.includes('lancelot_good') || selectedOptionalRoles.includes('lancelot_evil');
-  const otherOptionalRoles = selectedOptionalRoles.filter(r => r !== 'lancelot_good' && r !== 'lancelot_evil');
-  
-  if (useLancelots) {
-    rolesToAssign.push('lancelot_good');
-    rolesToAssign.push('lancelot_evil');
-  }
-  
-  otherOptionalRoles.forEach(roleId => rolesToAssign.push(roleId));
-
-  const currentGood = rolesToAssign.filter(r => ROLES[r].team === 'good').length;
-  const currentEvil = rolesToAssign.filter(r => ROLES[r].team === 'evil').length;
-
-  for (let i = 0; i < distribution.good - currentGood; i++) rolesToAssign.push('servant');
-  for (let i = 0; i < distribution.evil - currentEvil; i++) rolesToAssign.push('minion');
-
-  const shuffledRoles = shuffle(rolesToAssign);
-  const assignments: Record<string, string> = {};
-  playerIds.forEach((id, index) => {
-    assignments[id] = shuffledRoles[index];
-  });
-  return assignments;
 }
 
 export { httpServer, io };

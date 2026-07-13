@@ -277,19 +277,24 @@ export const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Playe
                 {room.excaliburEnabled && !room.excaliburUsed && (
                   <div className="pt-4 border-t border-white/5 space-y-3">
                     <p className="text-xs uppercase tracking-widest text-gray-400 font-bold">{t('app.game.excaliburAssign')}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {room.players.filter(p => p.id !== playerId).map(p => (
-                        <button
-                          key={p.id}
-                          onClick={() => socket.emit('assign-excalibur', { roomCode: room.code, targetPlayerId: p.id })}
-                          className={`p-2 rounded-lg border transition-all text-xs font-bold ${
-                            room.excaliburHolder === p.id ? 'border-[#ffd700] bg-[#ffd700]/10 text-[#ffd700]' : 'border-white/10 bg-white/5 text-gray-400'
-                          }`}
-                        >
-                          {p.name}
-                        </button>
-                      ))}
-                    </div>
+                    {selectedTeam.length === 0 ? (
+                      <p className="text-[10px] text-gray-500 italic">{t('app.game.excaliburSelectTeamFirst')}</p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* Regra oficial: portador precisa estar na equipe da missão */}
+                        {room.players.filter(p => p.id !== playerId && selectedTeam.includes(p.id)).map(p => (
+                          <button
+                            key={p.id}
+                            onClick={() => socket.emit('assign-excalibur', { roomCode: room.code, targetPlayerId: p.id, teamPlayerIds: selectedTeam })}
+                            className={`p-2 rounded-lg border transition-all text-xs font-bold ${
+                              room.excaliburHolder === p.id ? 'border-[#ffd700] bg-[#ffd700]/10 text-[#ffd700]' : 'border-white/10 bg-white/5 text-gray-400'
+                            }`}
+                          >
+                            {p.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <p className="text-[10px] text-gray-400 italic">{t('app.game.excaliburHint')}</p>
                   </div>
                 )}

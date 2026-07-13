@@ -252,7 +252,7 @@ describe('Excalibur', () => {
     const team = h.currentTeam(0); // 2 jogadores do bem
     const leader = h.leader();
     const holderCandidate = team.find(id => id !== leader.playerId) ?? team[0];
-    leader.socket.emit('assign-excalibur', { roomCode: h.code, targetPlayerId: holderCandidate });
+    leader.socket.emit('assign-excalibur', { roomCode: h.code, targetPlayerId: holderCandidate, teamPlayerIds: team });
     await h.waitFor(() => h.room.excaliburHolder === holderCandidate, 'excalibur atribuída');
 
     await h.proposeAndApprove(team);
@@ -275,7 +275,7 @@ describe('Excalibur', () => {
     const team = h.currentTeam(0);
     const leader = h.leader();
     const holderCandidate = team.find(id => id !== leader.playerId) ?? team[0];
-    leader.socket.emit('assign-excalibur', { roomCode: h.code, targetPlayerId: holderCandidate });
+    leader.socket.emit('assign-excalibur', { roomCode: h.code, targetPlayerId: holderCandidate, teamPlayerIds: team });
     await h.waitFor(() => h.room.excaliburHolder === holderCandidate, 'excalibur atribuída');
     await h.proposeAndApprove(team);
     team.forEach(id => h.byId(id).socket.emit('vote-mission', { roomCode: h.code, vote: 'success' }));

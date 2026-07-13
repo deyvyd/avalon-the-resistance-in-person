@@ -161,6 +161,39 @@ describe('guards do assign-excalibur (fix C)', () => {
     await new Promise(r => setTimeout(r, 300));
     expect(h.room.excaliburHolder).toBeNull();
   });
+
+  it('portador precisa estar na equipe proposta (regra oficial)', async () => {
+    h = await Harness.create(5);
+    await h.startGame({ excaliburEnabled: true });
+    const team = h.currentTeam(0);
+    const outsider = h.clients.find(c => !team.includes(c.playerId) && c !== h.leader())!;
+    // Sem equipe enviada: rejeitado
+    h.leader().socket.emit('assign-excalibur', { roomCode: h.code, targetPlayerId: outsider.playerId });
+    await new Promise(r => setTimeout(r, 300));
+    expect(h.room.excaliburHolder).toBeNull();
+    // Alvo fora da equipe enviada: rejeitado
+    h.leader().socket.emit('assign-excalibur', { roomCode: h.code, targetPlayerId: outsider.playerId, teamPlayerIds: team });
+    await new Promise(r => setTimeout(r, 300));
+    expect(h.room.excaliburHolder).toBeNull();
+  });
+
+  it('mudar a equipe depois de atribuir Excalibur limpa a designação ao propor', async () => {
+    h = await Harness.create(5);
+    await h.startGame({ excaliburEnabled: true });
+    const team = h.currentTeam(0);
+    const leader = h.leader();
+    const holderCandidate = team.find(id => id !== leader.playerId)!;
+    leader.socket.emit('assign-excalibur', { roomCode: h.code, targetPlayerId: holderCandidate, teamPlayerIds: team });
+    await h.waitFor(() => h.room.excaliburHolder === holderCandidate, 'excalibur atribuída');
+
+    // Propõe uma equipe diferente, sem o antigo portador
+    const missionSize = h.room.missions[0].size;
+    const others = h.room.players.map((p: any) => p.id).filter((id: string) => id !== holderCandidate);
+    const newTeam = others.slice(0, missionSize);
+    leader.socket.emit('propose-team', { roomCode: h.code, teamPlayerIds: newTeam });
+    await h.waitPhase('team-voting');
+    expect(h.room.excaliburHolder).toBeNull();
+  });
 });
 
 describe('leave-room no meio da partida (fix D)', () => {
