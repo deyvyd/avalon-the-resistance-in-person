@@ -67,7 +67,7 @@ export const Room = () => {
       socket.off('error', handleError);
       socket.off('connect', requestRoomInfo);
     };
-  }, [socket, navigate, code]);
+  }, [socket, navigate, code, t]);
 
   const handleJoin = () => {
     if (!playerName) return alert(t('app.enterNameAlert'));
