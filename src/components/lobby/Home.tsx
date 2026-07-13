@@ -30,16 +30,16 @@ export const Home = () => {
 
   const handleJoin = () => {
     if (!name || !roomCode) return alert(t('app.fillNameAndCode'));
-    socket.emit('join-room', { roomCode: roomCode.toUpperCase(), playerName: name, playerId: getPersistentId(), sessionToken: getSessionToken() });
+    socket.emit('join-room', { roomCode: roomCode.toUpperCase(), playerName: name, playerId: getPersistentId(), sessionToken: getSessionToken(roomCode.toUpperCase()) });
   };
 
   useEffect(() => {
     const handleRoomCreated = ({ roomCode, sessionToken }: any) => {
-      setSessionToken(sessionToken);
+      setSessionToken(roomCode, sessionToken);
       navigate(`/room/${roomCode}`);
     };
     const handleJoined = ({ roomCode, sessionToken }: any) => {
-      setSessionToken(sessionToken);
+      setSessionToken(roomCode, sessionToken);
       navigate(`/room/${roomCode}`);
     };
     const handleError = ({ code, message }: { code?: string; message: string }) =>
@@ -104,7 +104,9 @@ export const Home = () => {
               <button 
                 onClick={() => {
                   localStorage.removeItem('avalon_player_id');
-                  localStorage.removeItem('avalon_session_token');
+                  Object.keys(localStorage)
+                    .filter(k => k.startsWith('avalon_session_token'))
+                    .forEach(k => localStorage.removeItem(k));
                   sessionStorage.removeItem('avalon_player_id');
                   sessionStorage.removeItem('avalon_session_token');
                   window.location.reload();

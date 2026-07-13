@@ -3,14 +3,17 @@ export const getPersistentId = () => {
   // (migra ids antigos que estavam em sessionStorage)
   let id = localStorage.getItem('avalon_player_id') ?? sessionStorage.getItem('avalon_player_id');
   if (!id) {
-    id = Math.random().toString(36).substring(2, 15);
+    id = crypto.randomUUID();
   }
   localStorage.setItem('avalon_player_id', id);
   return id;
 };
 
-export const getSessionToken = () =>
-  localStorage.getItem('avalon_session_token') ?? sessionStorage.getItem('avalon_session_token');
-export const setSessionToken = (token: string | undefined) => {
-  if (token) localStorage.setItem('avalon_session_token', token);
+// Token é por sala no servidor — chavear por código evita que entrar numa
+// segunda sala invalide a reconexão na primeira
+export const getSessionToken = (roomCode: string) =>
+  localStorage.getItem(`avalon_session_token_${roomCode}`) ??
+  localStorage.getItem('avalon_session_token'); // legado: token único global
+export const setSessionToken = (roomCode: string, token: string | undefined) => {
+  if (token) localStorage.setItem(`avalon_session_token_${roomCode}`, token);
 };

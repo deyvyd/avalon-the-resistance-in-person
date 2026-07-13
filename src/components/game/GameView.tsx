@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Users,
@@ -35,7 +35,7 @@ export const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Playe
   const playerId = getPersistentId();
   const currentMission = room.missions[room.currentMissionIndex];
   const leader = room.players[room.currentLeaderIndex];
-  const isLeader = playerId === leader.id;
+  const isLeader = playerId === leader?.id;
   const [selectedTeam, setSelectedTeam] = useState<string[]>([]);
   const [targetMissionIndex, setTargetMissionIndex] = useState<number | null>(null);
   const [ladyResult, setLadyResult] = useState<{ targetName: string; loyalty: 'good' | 'evil' } | null>(null);
@@ -81,7 +81,7 @@ export const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Playe
         {p.id === playerId && <span className="font-normal text-blue-300 ml-1">{t('app.me')}</span>}
         {!p.socketId && <span className="text-[8px] ml-1 text-red-400 uppercase font-bold">{t('app.offline')}</span>}
       </span>
-      {showCrown && p.id === leader.id && <Crown size={14} className="text-[#ffd700] shrink-0" />}
+      {showCrown && p.id === leader?.id && <Crown size={14} className="text-[#ffd700] shrink-0" />}
     </span>
   );
 
@@ -198,7 +198,10 @@ export const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Playe
         {ladyResult && (
           <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl text-center space-y-2">
             <h4 className="text-xs uppercase tracking-widest text-[#ffd700] font-bold">{t('app.game.investigationResult')}</h4>
-            <p className="text-sm" dangerouslySetInnerHTML={{ __html: t('app.game.investigationIs', { name: ladyResult.targetName }) }} />
+            {/* Trans em vez de dangerouslySetInnerHTML: nome vem do jogador (XSS) */}
+            <p className="text-sm">
+              <Trans i18nKey="app.game.investigationIs" values={{ name: ladyResult.targetName }} components={{ b: <b /> }} />
+            </p>
             <Badge team={ladyResult.loyalty}>{ladyResult.loyalty === 'good' ? t('app.game.loyal') : t('app.game.disloyal')}</Badge>
           </div>
         )}
@@ -430,7 +433,8 @@ export const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Playe
               <div className="space-y-4">
                 <p className="text-sm font-bold">{t('app.game.excaliburChoosePlayer')}</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {room.proposedTeam.map(id => (
+                  {/* Excalibur não pode inverter o próprio voto */}
+                  {room.proposedTeam.filter(id => id !== playerId).map(id => (
                     <div key={id}>
                     <Button
                       variant="outline"
@@ -461,7 +465,9 @@ export const GameView = ({ room, me, isHost, onLeave }: { room: Room; me?: Playe
             {room.excaliburUsed && room.excaliburTarget && (
               <div className="p-3 bg-[#ffd700]/10 border border-[#ffd700]/30 rounded-xl max-w-xs mx-auto space-y-1">
                 <p className="text-[10px] uppercase tracking-widest text-[#ffd700] font-bold">{t('app.game.excaliburUsed')}</p>
-                <p className="text-xs" dangerouslySetInnerHTML={{ __html: t('app.game.excaliburRevealVote', { name: room.players.find(p => p.id === room.excaliburTarget)?.name }) }} />
+                <p className="text-xs">
+                  <Trans i18nKey="app.game.excaliburRevealVote" values={{ name: room.players.find(p => p.id === room.excaliburTarget)?.name }} components={{ b: <b /> }} />
+                </p>
                 <div className="flex items-center justify-center gap-2">
                   <span className="text-xl">{room.excaliburReveal === 'success' ? '🏆' : '💣'}</span>
                   <span className={`font-bold ${room.excaliburReveal === 'success' ? 'text-blue-400' : 'text-red-400'}`}>

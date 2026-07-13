@@ -8,7 +8,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import { LogOut } from 'lucide-react';
-import { getPersistentId, getSessionToken } from '../../lib/session';
+import { getPersistentId, getSessionToken, setSessionToken } from '../../lib/session';
 import { useSocket } from '../../context/SocketContext';
 import { useSettings } from '../../context/SettingsContext';
 import { Layout } from '../ui/Layout';
@@ -43,10 +43,17 @@ export const Room = () => {
     };
 
     const requestRoomInfo = () => {
-      socket.emit('get-room-info', { roomCode: code?.toUpperCase(), playerId: getPersistentId(), sessionToken: getSessionToken() });
+      const roomCode = code?.toUpperCase() ?? '';
+      socket.emit('get-room-info', { roomCode, playerId: getPersistentId(), sessionToken: getSessionToken(roomCode) });
+    };
+
+    // Sem salvar o token aqui, quem entra via QR/link não consegue reconectar
+    const handleJoined = ({ roomCode, sessionToken }: { roomCode: string; sessionToken?: string }) => {
+      setSessionToken(roomCode, sessionToken);
     };
 
     socket.on('room-updated', handleRoomUpdate);
+    socket.on('joined-room', handleJoined);
     socket.on('error', handleError);
     // Reconexão (wifi caiu, app voltou do background): sem isso o cliente
     // fica preso no último estado conhecido até a página ser recarregada
@@ -56,6 +63,7 @@ export const Room = () => {
 
     return () => {
       socket.off('room-updated', handleRoomUpdate);
+      socket.off('joined-room', handleJoined);
       socket.off('error', handleError);
       socket.off('connect', requestRoomInfo);
     };
@@ -64,7 +72,7 @@ export const Room = () => {
   const handleJoin = () => {
     if (!playerName) return alert(t('app.enterNameAlert'));
     setIsJoining(true);
-    socket.emit('join-room', { roomCode: code?.toUpperCase(), playerName, playerId: getPersistentId(), sessionToken: getSessionToken() });
+    socket.emit('join-room', { roomCode: code?.toUpperCase(), playerName, playerId: getPersistentId(), sessionToken: getSessionToken(code?.toUpperCase() ?? '') });
   };
 
   if (!room) {
@@ -130,7 +138,7 @@ export const Room = () => {
         {room.phase === 'lobby' && <LobbyView room={room} isHost={isHost} onLeave={handleLeave} />}
         {room.phase === 'character-reveal' && <CharacterRevealView room={room} me={me} />}
         {room.phase === 'narration' && <NarrationView room={room} isHost={isHost} />}
-        {(['team-proposal', 'team-voting', 'team-result', 'mission-voting', 'mission-result', 'assassination', 'game-over'].includes(room.phase)) && (
+        {(['team-proposal', 'team-voting', 'team-result', 'mission-voting', 'excalibur-usage', 'mission-result', 'lady-of-the-lake', 'assassination', 'game-over'].includes(room.phase)) && (
           <GameView room={room} me={me} isHost={isHost} onLeave={handleLeave} />
         )}
       </AnimatePresence>

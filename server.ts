@@ -583,7 +583,11 @@ io.on("connection", (socket) => {
   socket.on("use-excalibur", ({ roomCode, targetPlayerId }) => {
     const room = rooms.get(roomCode);
     const { playerId } = socketToPlayer.get(socket.id) || {};
-    if (!room || playerId !== room.excaliburHolder || room.excaliburUsed) return;
+    // Checagem de fase: sem ela o holder podia resolver a missão com votos parciais
+    if (!room || room.phase !== 'excalibur-usage') return;
+    if (playerId !== room.excaliburHolder || room.excaliburUsed) return;
+    // Regra: Excalibur não inverte o próprio voto
+    if (targetPlayerId === playerId) return;
 
     const originalVote = room.missionVotes[targetPlayerId];
     if (!originalVote) return;
@@ -602,7 +606,8 @@ io.on("connection", (socket) => {
   socket.on("skip-excalibur", ({ roomCode }) => {
     const room = rooms.get(roomCode);
     const { playerId } = socketToPlayer.get(socket.id) || {};
-    if (!room || playerId !== room.excaliburHolder || room.excaliburUsed) return;
+    if (!room || room.phase !== 'excalibur-usage') return;
+    if (playerId !== room.excaliburHolder || room.excaliburUsed) return;
 
     room.excaliburUsed = true;
     processMissionResult(room);
@@ -655,6 +660,7 @@ io.on("connection", (socket) => {
         } else {
           room.phase = 'team-proposal';
           room.proposedTeam = []; // Reset proposed team
+          room.excaliburHolder = null; // novo líder faz nova atribuição
           room.currentLeaderIndex = (room.currentLeaderIndex + 1) % room.players.length;
         }
       }
@@ -1002,7 +1008,7 @@ function checkGameOver(room: Room) {
 
 function saveMatchHistory(room: Room) {
   const match: MatchRecord = {
-    id: Math.random().toString(36).substring(2, 9),
+    id: crypto.randomUUID(),
     timestamp: new Date().toISOString(),
     playerCount: room.players.length,
     players: room.players.map(p => {
