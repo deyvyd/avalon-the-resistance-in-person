@@ -62,11 +62,8 @@ import {
 import type { Player, Mission, GamePhase, MatchRecord, TeamVoteResult, MissionVoteResult, Room, AvalonSettings } from './types';
 import { APP_VERSION, DEFAULT_SETTINGS } from './constants';
 import { getPersistentId, getSessionToken, setSessionToken } from './lib/session';
-import { useWakeLock } from './hooks/useWakeLock';
 import { SocketContext, useSocket } from './context/SocketContext';
-import { SettingsContext, useSettings, SettingsProvider } from './context/SettingsContext';
-
-// --- Context ---
+import { useSettings, SettingsProvider } from './context/SettingsContext';
 
 export const SettingsModal = ({
   settings,
