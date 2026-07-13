@@ -9,7 +9,7 @@ import { AnimatePresence } from 'motion/react';
 import type { AvalonSettings } from '../types';
 import { DEFAULT_SETTINGS } from '../constants';
 import { useWakeLock } from '../hooks/useWakeLock';
-import { SettingsModal } from '../App';
+import { SettingsModal } from '../components/modals/SettingsModal';
 
 export const SettingsContext = createContext<{
   settings: AvalonSettings;
