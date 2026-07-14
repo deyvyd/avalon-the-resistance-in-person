@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createContext, Fragment, useCallback, useContext, useMemo, useRef, useState, ReactNode } from 'react';
+import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 
@@ -43,8 +43,17 @@ export const ConfirmProvider = ({ children }: { children: ReactNode }) => {
   // Evita que uma segunda chamada síncrona (ex.: duplo clique correndo com o
   // Escape, ou clique no backdrop + no botão) processe o mesmo `current`
   // duas vezes antes do React re-renderizar, o que descartaria o próximo
-  // pedido da fila sem nunca resolver sua Promise.
+  // pedido da fila sem nunca resolver sua Promise. Só é reaberto pelo efeito
+  // abaixo, depois que o novo `current` é efetivamente commitado — resetar
+  // isso de forma síncrona aqui reabriria a janela de corrida no mesmo tick.
   const resolvedRef = useRef(false);
+
+  // Reabre o guard somente depois que o React commitou o novo `current`
+  // (seja um confirm novo mostrado diretamente, seja o próximo item da fila
+  // assumindo o lugar do anterior).
+  useEffect(() => {
+    resolvedRef.current = false;
+  }, [current]);
 
   const confirm = useCallback((options: ConfirmOptions) => {
     return new Promise<boolean>((resolve) => {
@@ -53,7 +62,6 @@ export const ConfirmProvider = ({ children }: { children: ReactNode }) => {
         queueRef.current.push(request);
       } else {
         showingRef.current = true;
-        resolvedRef.current = false;
         setCurrent(request);
       }
     });
@@ -65,7 +73,6 @@ export const ConfirmProvider = ({ children }: { children: ReactNode }) => {
     current.resolve(value);
     const next = queueRef.current.shift() ?? null;
     showingRef.current = next !== null;
-    resolvedRef.current = false;
     setCurrent(next);
   };
 
