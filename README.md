@@ -14,10 +14,14 @@ Language detected automatically from subdomain (`games.*` → EN, otherwise → 
 
 ## Stack
 
-- React 19 + TypeScript + Vite
-- Tailwind CSS 4
-- Socket.io (real-time WebSocket room sync)
-- react-i18next + i18next (i18n)
+- React 19 + TypeScript + Vite 6
+- Tailwind CSS 4 (CSS-first `@theme`, no `tailwind.config.js`)
+- Express + Socket.io (real-time WebSocket room sync; rooms live in server memory only)
+- react-router-dom (client routing, `/avalon` basename)
+- react-i18next + i18next (i18n, language auto-detected from subdomain)
+- motion (`motion/react`) for UI animation
+- vite-plugin-pwa (installable PWA) + qrcode.react (room join QR code)
+- Vitest (server-side integration tests)
 - Render (hosting)
 
 ## Run locally
@@ -35,10 +39,17 @@ Opens at `http://localhost:3000`.
 
 | Command | Description |
 |---|---|
-| `npm run dev` | Dev server (Express + Vite HMR) |
-| `npm run build` | Production build |
+| `npm run dev` | Dev server (Express + Vite HMR via `tsx server.ts`) |
+| `npm run build` | Production build (Vite → `dist/`) |
 | `npm run start` | Start production server (requires build) |
-| `npm run lint` | TypeScript type-check |
+| `npm run preview` | Preview a production build with Vite's static server |
+| `npm run lint` | TypeScript type-check (`tsc --noEmit`) |
+| `npm test` | Run the Vitest server-integration suite |
+| `npm run clean` | Remove `dist/` |
+
+## Testing
+
+`tests/` holds server-side integration tests (game rules, security/validation, full match harness) run against the Socket.io server directly — there is no component/UI test framework in this project. CI (`.github/workflows/ci.yml`) runs `lint` → `test` → `build` on every push to `main` and on pull requests.
 
 ## Deploy (Render)
 
@@ -57,16 +68,58 @@ Both domains (`jogos.deyvyd.com` and `games.deyvyd.com`) point via CNAME to the 
 ## Structure
 
 ```
+server.ts                      # Express + Socket.io server: rooms, game state, all socket events
 src/
-  App.tsx              # Root component, routes, Socket.io client
-  core/avalon.ts       # Role logic, narration, assignments
+  main.tsx                     # Entry point (StrictMode root)
+  App.tsx                      # Routes, Socket.io client, context providers
+  index.css                    # Tailwind v4 @theme (fonts, z-index scale)
+  constants.ts                 # DEFAULT_SETTINGS and other shared constants
+  types.ts                     # Shared TypeScript types (rooms, players, roles, settings)
+  core/
+    avalon.ts                  # Role logic, team/mission rules, narration script assignment
+  context/
+    SocketContext.tsx          # Socket.io client instance
+    SettingsContext.tsx        # Audio/UI settings, persisted to localStorage
+    ToastContext.tsx           # Toast (snackbar) provider — replaces alert()
+    ConfirmContext.tsx         # Promise-based confirm modal provider — replaces window.confirm()
+  hooks/
+    useWakeLock.ts             # Keeps screen awake during narration/game
+  lib/
+    session.ts                 # Persistent player id + room session tokens
   components/
-    GameGuide.tsx      # Quick rules reference
-    GameManual.tsx     # Full game manual
+    lobby/
+      Home.tsx                 # Landing page: create/join room
+      Room.tsx                 # Room shell: join flow, leave flow, routes to lobby/game
+      LobbyView.tsx             # Pre-game lobby: player list, QR code, start game
+      MatchHistoryView.tsx     # Past matches summary
+    game/
+      GameView.tsx             # Main in-game screen: teams, votes, missions
+      CharacterRevealView.tsx  # Private role reveal screen
+      NarrationView.tsx        # Automated audio narration playback
+      GameGuide.tsx            # Quick rules reference
+      GameManual.tsx           # Full game manual
+      KnowledgeSection.tsx     # "What each role knows" reference
+    modals/
+      SettingsModal.tsx        # Settings panel (audio, interface, language, restore defaults)
+      LancelotModal.tsx        # Lancelot variant role-swap modal
+    ui/
+      Button.tsx, Card.tsx, Badge.tsx, Layout.tsx, GameTitle.tsx
+      Toast.tsx                # Presentational toast (used by ToastContext)
+      ConfirmModal.tsx         # Presentational confirm dialog (used by ConfirmContext)
   i18n/
-    index.ts           # i18next setup + subdomain language detector
+    index.ts                   # i18next setup + subdomain language detector
     locales/
-      pt.json          # Portuguese strings
-      en.json          # English strings
-server.ts              # Express + Socket.io server
+      pt.json                  # Portuguese strings
+      en.json                  # English strings
+  assets/audios/                # Narration voice lines + soundtrack (mp3)
+tests/
+  game.test.ts                 # Game-rules integration tests
+  security.test.ts             # Input validation / abuse-case tests
+  rules.test.ts                # Role/rules edge cases
+  harness.ts                   # Shared test harness (socket client helpers)
+docs/
+  superpowers/
+    plans/                     # Implementation plans (superpowers workflow)
+    specs/                     # Design specs backing those plans
+public/                        # Static assets (favicon, manifest, screenshot)
 ```
