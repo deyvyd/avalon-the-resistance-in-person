@@ -37,7 +37,7 @@ export const ConfirmModal = ({
 
   return (
     <div
-      className="fixed inset-0 z-modal-elevated flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-confirm flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
       onClick={onCancel}
     >
       <motion.div

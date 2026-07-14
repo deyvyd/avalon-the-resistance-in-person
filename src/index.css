@@ -8,6 +8,7 @@
   --z-index-modal: 100;
   --z-index-modal-elevated: 110;
   --z-index-overlay-top: 200;
+  --z-index-confirm: 300;
 }
 
 body {
