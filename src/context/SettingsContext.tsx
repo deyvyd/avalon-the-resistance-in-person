@@ -9,6 +9,7 @@ import { AnimatePresence } from 'motion/react';
 import type { AvalonSettings } from '../types';
 import { DEFAULT_SETTINGS } from '../constants';
 import { useWakeLock } from '../hooks/useWakeLock';
+import { useConfirm } from './ConfirmContext';
 import { SettingsModal } from '../components/modals/SettingsModal';
 
 export const SettingsContext = createContext<{
@@ -49,6 +50,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   });
 
   const [showSettings, setShowSettings] = useState(false);
+  const confirm = useConfirm();
   const musicRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -75,8 +77,14 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const restoreDefaults = () => {
-    if (window.confirm(t('app.settings.restoreConfirm'))) {
+  const restoreDefaults = async () => {
+    const confirmed = await confirm({
+      title: t('app.settings.restoreDefaults'),
+      message: t('app.settings.restoreConfirm'),
+      confirmLabel: t('app.settings.restoreDefaults'),
+      danger: true,
+    });
+    if (confirmed) {
       setSettings(DEFAULT_SETTINGS);
       localStorage.setItem('avalonSettings', JSON.stringify(DEFAULT_SETTINGS));
       setShowSettings(false);

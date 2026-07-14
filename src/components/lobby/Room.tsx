@@ -12,6 +12,7 @@ import { getPersistentId, getSessionToken, setSessionToken } from '../../lib/ses
 import { useSocket } from '../../context/SocketContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useToast } from '../../context/ToastContext';
+import { useConfirm } from '../../context/ConfirmContext';
 import { Layout } from '../ui/Layout';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -31,6 +32,7 @@ export const Room = () => {
   const [isJoining, setIsJoining] = useState(false);
   const { settings, setShowSettings } = useSettings();
   const toast = useToast();
+  const confirm = useConfirm();
 
   useEffect(() => {
     const handleRoomUpdate = (updatedRoom: RoomState) => {
@@ -126,9 +128,15 @@ export const Room = () => {
     );
   }
 
-  const handleLeave = () => {
+  const handleLeave = async () => {
     if (settings.confirmOnLeave) {
-      if (!window.confirm(t('app.confirmLeave'))) return;
+      const confirmed = await confirm({
+        title: t('app.leaveRoom'),
+        message: t('app.confirmLeave'),
+        confirmLabel: t('app.leaveRoom'),
+        danger: true,
+      });
+      if (!confirmed) return;
     }
     socket.emit('leave-room', { roomCode: code?.toUpperCase(), playerId: getPersistentId() });
     navigate('/');
