@@ -10,7 +10,7 @@ Web app to run in-person Avalon sessions. Handles role assignment, automated aud
   <img src="public/screenshot.png" alt="Avalon App" />
 </div>
 
-Language detected automatically from subdomain (`games.*` → EN, otherwise → PT).
+Language detected automatically from subdomain (`games.*` → EN, otherwise → PT-BR).
 
 ## Stack
 
