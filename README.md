@@ -3,7 +3,7 @@
 Web app to run in-person Avalon sessions. Handles role assignment, automated audio narration, QR code room joining, and an integrated rules guide.
 
 **Live:**
-- 🇧🇷 [jogos.deyvyd.com/avalon](https://jogos.deyvyd.com/avalon) — Portuguese
+- 🇧🇷 [jogos.deyvyd.com/avalon](https://jogos.deyvyd.com/avalon) — Portuguese (Brazil)
 - 🇺🇸 [games.deyvyd.com/avalon](https://games.deyvyd.com/avalon) — English
 
 <div align="center">
